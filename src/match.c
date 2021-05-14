@@ -1359,6 +1359,11 @@ void PrintCountdown(int seconds)
 			strlcat(text, va("%s %5s\n", "Antilag", dig3((int) cvar("sv_antilag"))), sizeof(text));
 		}
 
+		if (cvar("k_drp"))
+		{
+			strlcat(text, va("%s %5s\n", "Drop Message", dig3((int)cvar("k_drp"))), sizeof(text));
+		}
+
 		if (cvar("k_noitems") && !isRACE())
 		{
 			strlcat(text, va("%s %5s\n", "NoItems", redtext("on")), sizeof(text));
