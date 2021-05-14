@@ -1046,7 +1046,7 @@ void vote_check_antilag()
 		vote_clear( OV_ANTILAG);
 
 		// toggle antilag mode.
-		trap_cvar_set_float("sv_antilag", (float)(cvar("sv_antilag") ? 0 : 2));
+		trap_cvar_set_float("sv_antilag", (float)(cvar("sv_antilag") ? 0 : 1));
 
 		if (veto)
 		{
