@@ -4,6 +4,7 @@ project('ktx', 'c',
 
 ktx_sources = [
 	'src/admin.c',
+	'src/antilag.c',
 	'src/arena.c',
 #	'src/bg_lib.c',
 	'src/bot_aim.c',

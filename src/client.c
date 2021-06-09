@@ -58,6 +58,11 @@ void item_megahealth_rot();
 void del_from_specs_favourites(gedict_t *rm);
 void item_megahealth_rot(void);
 
+antilag_t *antilag_create_player(gedict_t *e);
+void antilag_delete_player(gedict_t *e);
+void antilag_log(gedict_t *e, antilag_t *antilag);
+antilag_t *antilag_list_players;
+
 extern int g_matchstarttime;
 
 void CheckAll()
@@ -1638,6 +1643,8 @@ void ClientConnect()
 		}
 	}
 
+	self->antilag_data = antilag_create_player(self);
+
 	MakeMOTD();
 
 #ifdef BOT_SUPPORT
@@ -2735,6 +2742,8 @@ void ClientDisconnect()
 
 	set_important_fields(self); // set classname == "" and etc
 
+	antilag_delete_player(self);
+
 // s: added conditional function call here
 	if (self->k_kicking)
 	{
@@ -3593,6 +3602,8 @@ void PlayerPreThink()
 		}
 	}
 
+	//G_sprint(self, 2, "%s ping char\n", ezinfokey(self, "ping"));
+
 	VectorCopy(self->s.v.velocity, self->old_vel);
 }
 
@@ -4142,6 +4153,8 @@ void PlayerPostThink()
 #endif
 
 	W_WeaponFrame();
+
+	antilag_log(self, self->antilag_data);
 
 	race_player_post_think();
 

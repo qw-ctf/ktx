@@ -45,6 +45,8 @@
 
  */
 
+antilag_t *antilag_create_world(gedict_t *e);
+
 /*
  =============================================================================
 
@@ -742,6 +744,8 @@ void SP_func_door()
 // the sizes can be detected properly.
 	self->think = (func_t) LinkDoors;
 	self->s.v.nextthink = self->s.v.ltime + 0.1;
+
+	self->antilag_data = antilag_create_world(self);
 }
 
 /*
@@ -1050,4 +1054,6 @@ void SP_func_door_secret()
 	{
 		self->wait = 5;	// 5 seconds before closing
 	}
+
+	self->antilag_data = antilag_create_world(self);
 }

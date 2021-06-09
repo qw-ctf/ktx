@@ -3,6 +3,7 @@ g_main
 g_syscalls
 bg_lib
 buttons
+antilag
 client
 clan_arena
 combat

@@ -1694,6 +1694,7 @@ void CheckTiming();
 void check_fcheck();
 void CheckTeamStatus();
 void DoMVDAutoTrack(void);
+void antilag_updateworld();
 
 void FixNoSpecs(void);
 
@@ -1778,4 +1779,6 @@ void StartFrame(int time)
 	check_fcheck();
 
 	TeamplayGameTick();
+
+	antilag_updateworld();
 }

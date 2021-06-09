@@ -532,6 +532,10 @@ qbool		CanDamage( gedict_t *targ, gedict_t *inflictor );
 void            T_Damage( gedict_t * targ, gedict_t * inflictor, gedict_t * attacker, float damage );
 void            T_RadiusDamage( gedict_t * inflictor, gedict_t * attacker, float damage,
 				gedict_t * ignore, deathType_t dtype );
+void            T_RadiusDamage_Ignore2(gedict_t * inflictor, gedict_t * attacker, float damage,
+				gedict_t * ignore, gedict_t * ignore2, deathType_t dtype);
+void			T_RadiusDamageApply(gedict_t *inflictor, gedict_t *attacker, gedict_t *head, float damage,
+				deathType_t dtype);
 void            T_BeamDamage( gedict_t * attacker, float damage );
 
 //items.c
