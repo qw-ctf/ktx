@@ -954,8 +954,11 @@ void T_InstaKickback()
 
 void T_MissileExplode_Antilag()
 {
-	traceline(PASSVEC3(self->oldangles), PASSVEC3(self->s.v.origin), true, self);
-	trap_setorigin(NUM_FOR_EDICT(self), PASSVEC3(g_globalvars.trace_endpos));
+	if ((int)self->s.v.flags & FL_GODMODE)
+	{
+		traceline(PASSVEC3(self->oldangles), PASSVEC3(self->s.v.origin), true, self);
+		trap_setorigin(NUM_FOR_EDICT(self), PASSVEC3(g_globalvars.trace_endpos));
+	}
 
 	// this is awful, but it's the easiest way to exactly replicate the crappy findradius cropping of the splash radius
 	gedict_t *own = PROG_TO_EDICT(self->s.v.owner);
@@ -1045,7 +1048,10 @@ void T_MissileTouch()
 		local_explosion->s.v.owner = self->s.v.owner;
 
 		if ((int)self->s.v.flags & FL_GODMODE)
+		{
 			local_explosion->s.v.nextthink = g_globalvars.time + (vlen(diff) / vlen(self->s.v.velocity));
+			local_explosion->s.v.flags = (int)self->s.v.flags | FL_GODMODE;
+		}
 		else
 			local_explosion->s.v.nextthink = g_globalvars.time + self->s.v.health;
 
