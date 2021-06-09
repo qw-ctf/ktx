@@ -15,6 +15,125 @@ antilag_t ANTILAG_MEMPOOL[ANTILAG_MAXEDICTS];
 antilag_t *antilag_list_players;
 antilag_t *antilag_list_world;
 float antilag_nextthink_world;
+vec3_t antilag_origin;
+vec3_t antilag_retvec;
+
+void Physics_PushEntityTrace(float push_x, float push_y, float push_z)
+{
+	vec3_t push = { push_x, push_y, push_z };
+	vec3_t end;
+
+	VectorAdd(self->s.v.origin, push, end);
+
+	traceline(PASSVEC3(self->s.v.origin), PASSVEC3(end), false, self);
+}
+
+float Physics_PushEntity(float push_x, float push_y, float push_z, int failonstartsolid) // SV_PushEntity
+{
+	vec3_t push = { push_x, push_y, push_z };
+
+	Physics_PushEntityTrace(PASSVEC3(push));
+
+	if (g_globalvars.trace_startsolid && failonstartsolid)
+		return g_globalvars.trace_fraction;
+
+	trap_setorigin(NUM_FOR_EDICT(self), PASSVEC3(g_globalvars.trace_endpos));
+
+	if (g_globalvars.trace_fraction < 1)
+	{
+		if (self->s.v.solid >= SOLID_TRIGGER && (!((int)self->s.v.flags & FL_ONGROUND) || (self->s.v.groundentity != g_globalvars.trace_ent)))
+		{
+			other = PROG_TO_EDICT(g_globalvars.trace_ent);
+			((void(*)())(self->touch))();
+		}
+	}
+
+	return g_globalvars.trace_fraction;
+}
+
+#define MAX_CLIP_PLANES 5
+void Physics_ClipVelocity(float vel_x, float vel_y, float vel_z, float norm_x, float norm_y, float norm_z, float f) // SV_ClipVelocity
+{
+	vec3_t vel = { vel_x, vel_y, vel_z };
+	vec3_t norm = { norm_x, norm_y, norm_z };
+
+	vec3_t vel2;
+	VectorScale(norm, DotProduct(vel, norm), vel2);
+	VectorScale(vel2, f, vel2);
+	VectorSubtract(vel, vel2, vel);
+
+	if (vel[0] > -0.1 && vel[0] < 0.1) vel[0] = 0;
+	if (vel[1] > -0.1 && vel[1] < 0.1) vel[1] = 0;
+	if (vel[2] > -0.1 && vel[2] < 0.1) vel[2] = 0;
+
+	VectorCopy(vel, antilag_retvec);
+}
+
+void Physics_Bounce(float dt)
+{
+	float gravity_value = cvar("sv_gravity");
+
+	if ((int)self->s.v.flags & FL_ONGROUND)
+	{
+		if (self->s.v.velocity[2] >= 1 / 32)
+			self->s.v.flags = (int)self->s.v.flags &~ FL_ONGROUND;
+		else if (!self->s.v.groundentity)
+			return;
+	}
+
+
+	if (self->gravity)
+		self->s.v.velocity[2] -= 0.5 * dt * self->gravity * gravity_value;
+	else
+		self->s.v.velocity[2] -= 0.5 * dt * gravity_value;
+
+	VectorMA(self->s.v.avelocity, dt, self->s.v.angles, self->s.v.angles);
+
+	float movetime, bump;
+	movetime = dt;
+	for (bump = 0; bump < MAX_CLIP_PLANES && movetime > 0; ++bump)
+	{
+		vec3_t move;
+		VectorScale(self->s.v.velocity, movetime, move);
+		Physics_PushEntity(PASSVEC3(move), true);
+
+		if (g_globalvars.trace_fraction == 1)
+			break;
+
+		movetime *= 1 - min(1, g_globalvars.trace_fraction);
+
+		float d, bouncefac, bouncestp;
+
+		bouncefac = 0.5;
+		bouncestp = 60 / 800;
+		if (self->gravity)
+			bouncestp *= self->gravity * gravity_value;
+		else
+			bouncestp *= gravity_value;
+
+		Physics_ClipVelocity(PASSVEC3(self->s.v.velocity), PASSVEC3(g_globalvars.trace_plane_normal), 1 + bouncefac);
+		VectorCopy(antilag_retvec, self->s.v.velocity);
+
+		d = DotProduct(g_globalvars.trace_plane_normal, self->s.v.velocity);
+		if (g_globalvars.trace_plane_normal[2] > 0.7 && d < bouncestp && d > -bouncestp)
+		{
+			self->s.v.flags = (int)self->s.v.flags | FL_ONGROUND;
+			self->s.v.groundentity = g_globalvars.trace_ent;
+			VectorClear(self->s.v.velocity);
+			VectorClear(self->s.v.avelocity);
+		}
+		else
+			self->s.v.flags = (int)self->s.v.flags &~ FL_ONGROUND;
+	}
+
+	if (!((int)self->s.v.flags & FL_ONGROUND))
+	{
+		if (self->gravity)
+			self->s.v.velocity[2] -= 0.5 * dt * self->gravity * gravity_value;
+		else
+			self->s.v.velocity[2] -= 0.5 * dt * gravity_value;
+	}
+}
 
 void antilag_log(gedict_t *e, antilag_t *antilag)
 {
@@ -163,8 +282,6 @@ void antilag_lagmove(antilag_t *data, float ms)
 
 	trap_setorigin(NUM_FOR_EDICT(owner), PASSVEC3(lerp_origin));
 }
-
-vec3_t antilag_origin;
 
 void antilag_getorigin(antilag_t *data, float ms)
 {
@@ -348,7 +465,7 @@ void antilag_lagmove_all_hitscan(gedict_t *e)
 	antilag_lagmove_all(e, ms);
 }
 
-void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e, void touch_func())
+void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 {
 	if (cvar("sv_antilag") != 1)
 		return;
@@ -393,11 +510,12 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e, void touch_func())
 	while (current_time < g_globalvars.time)
 	{
 		step_time = bound(0.01, min(step_time, (g_globalvars.time - current_time) - 0.01), 0.05);
+
+		antilag_lagmove_all_nohold(owner, (g_globalvars.time - current_time), false);
 		traceline(PASSVEC3(e->s.v.origin), e->s.v.origin[0] + e->s.v.velocity[0] * step_time,
 			e->s.v.origin[1] + e->s.v.velocity[1] * step_time, e->s.v.origin[2] + e->s.v.velocity[2] * step_time,
 			false, e);
 
-		antilag_lagmove_all_nohold(owner, (g_globalvars.time - current_time), false);
 		trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(g_globalvars.trace_endpos));
 
 		if (g_globalvars.trace_fraction < 1)
@@ -407,10 +525,71 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e, void touch_func())
 			other = PROG_TO_EDICT(g_globalvars.trace_ent);
 			self = e;
 			self->s.v.flags = ((int)self->s.v.flags) | FL_GODMODE;
-			touch_func();
+			((void(*)())(self->touch))();
 			break;
 			//}
 		}
+
+		current_time += step_time;
+	}
+
+	self = oself;
+
+	// restore origins to held values
+	antilag_unmove_all();
+}
+
+
+void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
+{
+	if (cvar("sv_antilag") != 1)
+		return;
+
+	float ms = (atof(ezinfokey(owner, "ping")) / 1000) - 0.013;
+
+	if (ms > ANTILAG_REWIND_MAXPROJECTILE)
+		ms = ANTILAG_REWIND_MAXPROJECTILE;
+	else if (ms < 0)
+		ms = 0;
+
+	// log hold stats, because we use nohold antilag moving
+	antilag_t *list;
+	for (list = antilag_list_players; list != NULL; list = list->next)
+	{
+		if (list->owner->s.v.health <= 0)
+			continue;
+
+		VectorCopy(list->owner->s.v.origin, list->held_origin);
+		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
+	}
+
+	for (list = antilag_list_world; list != NULL; list = list->next)
+	{
+		VectorCopy(list->owner->s.v.origin, list->held_origin);
+		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
+	}
+
+	vec3_t old_org;
+	VectorCopy(owner->s.v.origin, old_org);
+	antilag_lagmove_all_nohold(owner, ms, true);
+	VectorSubtract(owner->s.v.origin, old_org, old_org);
+	VectorAdd(e->s.v.origin, old_org, old_org);
+	trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(old_org));
+	VectorCopy(e->s.v.origin, e->oldangles); // store for later maybe
+	e->s.v.health = ms;
+
+	gedict_t *oself = self;
+	self = e;
+
+	float step_time = min(0.05, ms);
+	float current_time = g_globalvars.time - ms;
+	while (current_time < g_globalvars.time)
+	{
+		step_time = bound(0.01, min(step_time, (g_globalvars.time - current_time) - 0.01), 0.05);
+		
+		antilag_lagmove_all_nohold(owner, (g_globalvars.time - current_time), false);
+		Physics_Bounce(step_time);
+		self->s.v.nextthink -= step_time;
 
 		current_time += step_time;
 	}

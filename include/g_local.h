@@ -405,6 +405,20 @@ char		*cl_ip( gedict_t *p );
 char		*clean_string(char *s);
 
 //
+//	antilag.c
+//
+void			antilag_lagmove_all_hitscan(gedict_t *e);
+void			antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e);
+void			antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e);
+void			antilag_unmove_all();
+antilag_t		*antilag_create_player(gedict_t *e);
+antilag_t		*antilag_create_world(gedict_t *e);
+void			antilag_delete_player(gedict_t *e);
+void			antilag_delete_world(gedict_t *e);
+void			antilag_log(gedict_t *e, antilag_t *antilag);
+
+
+//
 //  subs.c
 //
 void            SUB_CalcMove( vec3_t tdest, float tspeed, void ( *func ) () );

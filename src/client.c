@@ -58,9 +58,6 @@ void item_megahealth_rot();
 void del_from_specs_favourites(gedict_t *rm);
 void item_megahealth_rot(void);
 
-antilag_t *antilag_create_player(gedict_t *e);
-void antilag_delete_player(gedict_t *e);
-void antilag_log(gedict_t *e, antilag_t *antilag);
 antilag_t *antilag_list_players;
 
 extern int g_matchstarttime;

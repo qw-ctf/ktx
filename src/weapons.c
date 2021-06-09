@@ -30,10 +30,6 @@ void AdminImpBot();
 void CaptainPickPlayer();
 void ChasecamToggleButton(void);
 
-void antilag_lagmove_all_hitscan(gedict_t *e);
-void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e, void touch_func());
-void antilag_unmove_all();
-
 // Bots support
 void BotsRocketSpawned(gedict_t *newmis);
 void BotsGrenadeSpawned(gedict_t *newmis);
@@ -1140,7 +1136,7 @@ void W_FireRocket()
 	// midair 
 	VectorCopy(self->s.v.origin, newmis->s.v.oldorigin);
 
-	antilag_lagmove_all_proj(self, newmis, T_MissileTouch);
+	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
 
 #ifdef BOT_SUPPORT
@@ -1486,6 +1482,9 @@ void W_FireGrenade()
 	setsize(newmis, 0, 0, 0, 0, 0, 0);
 	setorigin(newmis, PASSVEC3(self->s.v.origin));
 
+	antilag_lagmove_all_proj_bounce(self, newmis);
+	antilag_unmove_all();
+
 #ifdef BOT_SUPPORT
 	BotsGrenadeSpawned(newmis);
 #endif
@@ -1715,7 +1714,7 @@ void W_FireSuperSpikes()
 	g_globalvars.msg_entity = EDICT_TO_PROG(self);
 	WriteByte( MSG_ONE, SVC_SMALLKICK);
 
-	antilag_lagmove_all_proj(self, newmis, superspike_touch);
+	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
 }
 
@@ -1775,7 +1774,7 @@ void W_FireSpikes(float ox)
 	g_globalvars.msg_entity = EDICT_TO_PROG(self);
 	WriteByte( MSG_ONE, SVC_SMALLKICK);
 
-	antilag_lagmove_all_proj(self, newmis, spike_touch);
+	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
 }
 
