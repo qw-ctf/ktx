@@ -96,6 +96,7 @@ void W_FireAxe()
 	traceline(PASSVEC3(source), PASSVEC3(dest), false, self);
 	if (g_globalvars.trace_fraction == 1.0)
 	{
+		antilag_unmove_all();
 		return;
 	}
 
