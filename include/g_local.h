@@ -407,6 +407,7 @@ char		*clean_string(char *s);
 //
 //	antilag.c
 //
+void			antilag_lagmove(antilag_t *data, float goal_time);
 void			antilag_lagmove_all_hitscan(gedict_t *e);
 void			antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e);
 void			antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e);

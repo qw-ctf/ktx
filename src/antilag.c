@@ -242,10 +242,8 @@ void antilag_updateworld()
 	}
 }
 
-void antilag_lagmove(antilag_t *data, float ms)
+void antilag_lagmove(antilag_t *data, float goal_time)
 {
-	float goal_time = g_globalvars.time - ms;
-
 	int old_seek = data->rewind_seek;
 	int seek = data->rewind_seek - 1;
 	if (seek < 0)
@@ -268,7 +266,7 @@ void antilag_lagmove(antilag_t *data, float ms)
 	gedict_t *owner = data->owner;
 
 	vec3_t lerp_origin;
-	if (frac < 1)
+	if (frac <= 1)
 	{
 		vec3_t diff;
 		VectorSubtract(data->rewind_origin[old_seek], data->rewind_origin[seek], diff);
@@ -277,16 +275,20 @@ void antilag_lagmove(antilag_t *data, float ms)
 	}
 	else
 	{
-		VectorCopy(owner->s.v.origin, lerp_origin);
+		float frac = (goal_time - over_time) / (g_globalvars.time - over_time);
+		frac = min(frac, 1);
+
+		vec3_t diff;
+		VectorSubtract(owner->s.v.origin, data->rewind_origin[data->rewind_seek], diff);
+		VectorScale(diff, frac, diff);
+		VectorAdd(data->rewind_origin[data->rewind_seek], diff, lerp_origin);
 	}
 
 	trap_setorigin(NUM_FOR_EDICT(owner), PASSVEC3(lerp_origin));
 }
 
-void antilag_getorigin(antilag_t *data, float ms)
+void antilag_getorigin(antilag_t *data, float goal_time)
 {
-	float goal_time = g_globalvars.time - ms;
-
 	int old_seek = data->rewind_seek;
 	int seek = data->rewind_seek - 1;
 	if (seek < 0)
@@ -309,7 +311,7 @@ void antilag_getorigin(antilag_t *data, float ms)
 	gedict_t *owner = data->owner;
 
 	vec3_t lerp_origin;
-	if (frac < 1)
+	if (frac <= 1)
 	{
 		vec3_t diff;
 		VectorSubtract(data->rewind_origin[old_seek], data->rewind_origin[seek], diff);
@@ -318,7 +320,11 @@ void antilag_getorigin(antilag_t *data, float ms)
 	}
 	else
 	{
-		VectorCopy(owner->s.v.origin, lerp_origin);
+		float frac = (goal_time - over_time) / (g_globalvars.time - over_time);
+		vec3_t diff;
+		VectorSubtract(owner->s.v.origin, data->rewind_origin[data->rewind_seek], diff);
+		VectorScale(diff, frac, diff);
+		VectorAdd(data->rewind_origin[data->rewind_seek], diff, lerp_origin);
 	}
 
 	VectorCopy(lerp_origin, antilag_origin);
@@ -346,6 +352,8 @@ int antilag_getseek(antilag_t *data, float ms)
 
 void antilag_lagmove_all(gedict_t *e, float ms)
 {
+	float rewind_time = g_globalvars.time - ms;
+
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
 	{
@@ -365,7 +373,7 @@ void antilag_lagmove_all(gedict_t *e, float ms)
 				{
 					vec3_t diff;
 					VectorClear(diff);
-					antilag_getorigin(plat->antilag_data, ms);
+					antilag_getorigin(plat->antilag_data, rewind_time);
 					VectorSubtract(antilag_origin, plat->s.v.origin, diff);
 
 					vec3_t org;
@@ -377,19 +385,21 @@ void antilag_lagmove_all(gedict_t *e, float ms)
 			continue;
 		}
 
-		antilag_lagmove(list, ms);
+		antilag_lagmove(list, rewind_time);
 	}
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
 		VectorCopy(list->owner->s.v.origin, list->held_origin);
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
-		antilag_lagmove(list, ms);
+		antilag_lagmove(list, rewind_time);
 	}
 }
 
 void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 {
+	float rewind_time = g_globalvars.time - ms;
+
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
 	{
@@ -408,7 +418,7 @@ void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 					{
 						vec3_t diff;
 						VectorClear(diff);
-						antilag_getorigin(plat->antilag_data, ms);
+						antilag_getorigin(plat->antilag_data, rewind_time);
 						VectorSubtract(antilag_origin, plat->s.v.origin, diff);
 
 						vec3_t org;
@@ -421,12 +431,12 @@ void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 			continue;
 		}
 
-		antilag_lagmove(list, ms);
+		antilag_lagmove(list, rewind_time);
 	}
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
-		antilag_lagmove(list, ms);
+		antilag_lagmove(list, rewind_time);
 	}
 }
 

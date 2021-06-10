@@ -961,8 +961,13 @@ void T_MissileExplode_Antilag()
 		trap_setorigin(NUM_FOR_EDICT(self), PASSVEC3(g_globalvars.trace_endpos));
 	}
 
-	// this is awful, but it's the easiest way to exactly replicate the crappy findradius cropping of the splash radius
 	gedict_t *own = PROG_TO_EDICT(self->s.v.owner);
+
+	antilag_t *list = own->antilag_data;
+	VectorCopy(own->s.v.origin, list->held_origin);
+	antilag_lagmove(list, self->gravity);
+
+	// this is awful, but it's the easiest way to exactly replicate the crappy findradius cropping of the splash radius
 	gedict_t *head;
 	head = trap_findradius(world, self->s.v.origin, 160);
 
@@ -976,6 +981,7 @@ void T_MissileExplode_Antilag()
 		head = trap_findradius(head, self->s.v.origin, 160);
 	}
 
+	trap_setorigin(NUM_FOR_EDICT(own), PASSVEC3(list->held_origin));
 	ent_remove(self);
 }
 
@@ -1050,15 +1056,41 @@ void T_MissileTouch()
 		VectorCopy(self->oldangles, local_explosion->oldangles);
 		local_explosion->s.v.owner = self->s.v.owner;
 
+		float delay;
+
 		if ((int)self->s.v.flags & FL_GODMODE)
 		{
-			local_explosion->s.v.nextthink = g_globalvars.time + (vlen(diff) / vlen(self->s.v.velocity));
+			delay = (vlen(diff) / vlen(self->s.v.velocity));
 			local_explosion->s.v.flags = (int)self->s.v.flags | FL_GODMODE;
+			delay -= 0.042;
 		}
 		else
-			local_explosion->s.v.nextthink = g_globalvars.time + self->s.v.health;
+		{
+			vec3_t traveled;
+			VectorScale(self->s.v.velocity, g_globalvars.time - self->rad_time, traveled);
+			VectorAdd(self->oldangles, traveled, self->oldangles);
+			VectorSubtract(self->s.v.origin, self->oldangles, diff);
 
-		local_explosion->think = (func_t)T_MissileExplode_Antilag;
+			delay = (vlen(diff) / vlen(self->s.v.velocity));
+			delay -= 0.042;
+			//delay = self->s.v.health;
+		}
+
+		if (delay > 0.05)
+		{
+			local_explosion->s.v.nextthink = g_globalvars.time + delay;
+			local_explosion->gravity = g_globalvars.time + delay;
+			local_explosion->think = (func_t)T_MissileExplode_Antilag;
+		}
+		else
+		{
+			delay = 0;
+			gedict_t *oself = self;
+			self = local_explosion;
+			self->gravity = g_globalvars.time;
+			T_MissileExplode_Antilag();
+			self = oself;
+		}
 	}
 	else
 		T_RadiusDamage(self, PROG_TO_EDICT(self->s.v.owner), 120, other, dtRL);
@@ -1144,6 +1176,7 @@ void W_FireRocket()
 
 	// midair 
 	VectorCopy(self->s.v.origin, newmis->s.v.oldorigin);
+	newmis->rad_time = g_globalvars.time;
 
 	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
