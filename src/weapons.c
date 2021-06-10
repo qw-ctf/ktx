@@ -974,6 +974,8 @@ void T_MissileExplode_Antilag()
 
 		head = trap_findradius(head, self->s.v.origin, 160);
 	}
+
+	ent_remove(self);
 }
 
 void T_MissileTouch()
