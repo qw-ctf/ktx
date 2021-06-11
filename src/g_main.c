@@ -58,6 +58,8 @@ field_t expfields[] =
 	{ "hideplayers", 	FOFS(hideplayers), 	F_INT },
 	{ "visclients", 	FOFS(visclients), 	F_INT },
 	{ "teleported", 	FOFS(teleported), 	F_INT },
+	{ "attack_finished",FOFS(attack_finished), F_FLOAT },
+	{ "client_time", 	FOFS(client_time), 	F_FLOAT },
 	{ NULL }
 };
 
