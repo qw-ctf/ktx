@@ -1190,6 +1190,7 @@ typedef struct gedict_s {
 
 // { antilag
 	struct antilag_s *antilag_data;
+	float client_time;
 // }
 } gedict_t;
 

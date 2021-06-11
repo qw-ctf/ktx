@@ -2626,7 +2626,7 @@ void DropBackpack()
 
 	// Yawnmode: unfairpacks in DMM1, only drop current weapon if the player was shooting (idea from Tonik)
 	// - Molgrum
-	if (k_yawnmode && (deathmatch == 1) && (self->attack_finished < g_globalvars.time))
+	if (k_yawnmode && (deathmatch == 1) && (self->attack_finished < self->client_time))
 	{
 		item->s.v.items = IT_SHOTGUN;
 	}

@@ -30,7 +30,7 @@ void GrappleReset(gedict_t *rhook)
 	owner->s.v.weaponframe = 0;
 
 	// Original 3wave code added 0.25 to time, but instant-switch is the qw way.
-	owner->attack_finished = g_globalvars.time;
+	owner->attack_finished = owner->client_time;
 
 	rhook->think = (func_t) SUB_Remove;
 	rhook->s.v.nextthink = next_frame();

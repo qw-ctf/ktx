@@ -520,6 +520,7 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	while (current_time < g_globalvars.time)
 	{
 		step_time = bound(0.01, min(step_time, (g_globalvars.time - current_time) - 0.01), 0.05);
+		if (e->s.v.nextthink) { e->s.v.nextthink -= step_time; }
 
 		antilag_lagmove_all_nohold(owner, (g_globalvars.time - current_time), false);
 		traceline(PASSVEC3(e->s.v.origin), e->s.v.origin[0] + e->s.v.velocity[0] * step_time,
@@ -599,8 +600,7 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 		
 		antilag_lagmove_all_nohold(owner, (g_globalvars.time - current_time), false);
 		Physics_Bounce(step_time);
-		self->s.v.nextthink -= step_time;
-
+		if (self->s.v.nextthink) { self->s.v.nextthink -= step_time; }
 		current_time += step_time;
 	}
 

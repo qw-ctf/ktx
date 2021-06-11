@@ -593,7 +593,7 @@ void TimerThink()
 	{
 		for (p = world; (p = find_plr(p));)
 		{
-			idle_time = (int)(g_globalvars.time - p->attack_finished);
+			idle_time = (int)(p->client_time - p->attack_finished);
 			if (idle_time > k_matchLess_idle_time)
 			{
 				G_sprint(
