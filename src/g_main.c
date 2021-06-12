@@ -60,6 +60,9 @@ field_t expfields[] =
 	{ "teleported", 	FOFS(teleported), 	F_INT },
 	{ "attack_finished",FOFS(attack_finished), F_FLOAT },
 	{ "client_time", 	FOFS(client_time), 	F_FLOAT },
+	{ "client_nextthink", 	FOFS(client_nextthink), 	F_FLOAT },
+	{ "client_thinkindex", 	FOFS(client_thinkindex), 	F_FLOAT },
+	{ "client_ping", 	FOFS(client_ping), 	F_FLOAT },
 	{ NULL }
 };
 

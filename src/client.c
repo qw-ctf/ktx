@@ -4122,6 +4122,17 @@ void PlayerPostThink()
 		return;
 	}
 
+	if (self->client_nextthink && self->client_time >= self->client_nextthink)
+	{
+		float held_client_time = self->client_time;
+
+		self->client_time = self->client_nextthink;
+		self->client_nextthink = 0;
+		((void(*)())(self->client_think))();
+
+		self->client_time = held_client_time;
+	}
+
 	if (self->s.v.deadflag)
 	{
 		return;
@@ -4154,6 +4165,7 @@ void PlayerPostThink()
 	W_WeaponFrame();
 
 	antilag_log(self, self->antilag_data);
+	self->client_ping = atof(ezinfokey(self, "ping"));
 
 	race_player_post_think();
 

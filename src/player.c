@@ -82,6 +82,8 @@ void player_run()
 	self->s.v.frame = 6;
 	self->think = (func_t) player_run;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
+	self->client_nextthink = 0;
+	self->client_thinkindex = 0;
 
 	self->s.v.weaponframe = 0;
 	if (!self->s.v.velocity[0] && !self->s.v.velocity[1])
@@ -133,6 +135,11 @@ void muzzleflash()
 	WriteByte( MSG_MULTICAST, SVC_MUZZLEFLASH);
 	WriteEntity( MSG_MULTICAST, self);
 	trap_multicast(PASSVEC3(self->s.v.origin), MULTICAST_PVS);
+}
+
+void player_dummyanim()
+{
+
 }
 
 void player_chain1()
@@ -209,7 +216,11 @@ void player_chain5()
 void player_shot1()
 {
 	self->s.v.frame = 113;
-	self->think = (func_t) player_shot2;
+	self->client_think = (func_t)player_shot2;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 2;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 1;
@@ -219,7 +230,11 @@ void player_shot1()
 void player_shot2()
 {
 	self->s.v.frame = 114;
-	self->think = (func_t) player_shot3;
+	self->client_think = (func_t)player_shot3;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 3;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 2;
@@ -228,7 +243,11 @@ void player_shot2()
 void player_shot3()
 {
 	self->s.v.frame = 115;
-	self->think = (func_t) player_shot4;
+	self->client_think = (func_t)player_shot4;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 4;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 3;
@@ -237,15 +256,24 @@ void player_shot3()
 void player_shot4()
 {
 	self->s.v.frame = 116;
-	self->think = (func_t) player_shot5;
+	self->client_think = (func_t)player_shot5;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 5;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
+
 	self->s.v.weaponframe = 4;
 }
 
 void player_shot5()
 {
 	self->s.v.frame = 117;
-	self->think = (func_t) player_shot6;
+	self->client_think = (func_t)player_shot6;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 6;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 5;
@@ -255,7 +283,11 @@ void player_shot6()
 {
 	self->s.v.frame = 118;
 	self->walkframe = 0;
-	self->think = (func_t) player_run;
+	self->client_think = (func_t) player_run;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 0;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 6;
@@ -431,7 +463,11 @@ void set_idealtime()
 void player_nail1()
 {
 	self->s.v.frame = 103;
-	self->think = (func_t) player_nail2;
+	self->client_think = (func_t)player_nail2;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 2;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	if (!self->s.v.button0 || intermission_running || self->s.v.impulse)
@@ -460,7 +496,11 @@ void player_nail1()
 void player_nail2()
 {
 	self->s.v.frame = 104;
-	self->think = (func_t) player_nail1;
+	self->client_think = (func_t) player_nail1;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 1;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	if (!self->s.v.button0 || intermission_running || self->s.v.impulse)
@@ -558,7 +598,11 @@ void player_light2()
 void player_rocket1()
 {
 	self->s.v.frame = 107;
-	self->think = (func_t) player_rocket2;
+	self->client_think = (func_t)player_rocket2;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 2;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 1;
@@ -568,7 +612,11 @@ void player_rocket1()
 void player_rocket2()
 {
 	self->s.v.frame = 108;
-	self->think = (func_t) player_rocket3;
+	self->client_think = (func_t)player_rocket3;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 3;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 2;
@@ -577,7 +625,11 @@ void player_rocket2()
 void player_rocket3()
 {
 	self->s.v.frame = 109;
-	self->think = (func_t) player_rocket4;
+	self->client_think = (func_t)player_rocket4;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 4;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 3;
@@ -586,7 +638,11 @@ void player_rocket3()
 void player_rocket4()
 {
 	self->s.v.frame = 110;
-	self->think = (func_t) player_rocket5;
+	self->client_think = (func_t)player_rocket5;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 5;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 4;
@@ -595,7 +651,11 @@ void player_rocket4()
 void player_rocket5()
 {
 	self->s.v.frame = 111;
-	self->think = (func_t) player_rocket6;
+	self->client_think = (func_t)player_rocket6;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 6;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 5;
@@ -605,7 +665,11 @@ void player_rocket6()
 {
 	self->s.v.frame = 112;
 	self->walkframe = 0;
-	self->think = (func_t) player_run;
+	self->client_think = (func_t) player_run;
+	self->client_nextthink = self->client_time + 0.1;
+	self->client_thinkindex = 0;
+
+	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
 
 	self->s.v.weaponframe = 6;
