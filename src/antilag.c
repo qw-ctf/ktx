@@ -465,7 +465,7 @@ void antilag_lagmove_all_hitscan(gedict_t *e)
 	if (cvar("sv_antilag") != 1)
 		return;
 
-	float ms = (atof(ezinfokey(e, "ping")) / 1000) - 0.013;
+	float ms = (atof(ezinfokey(e, "ping")) / 1000) - 0.026;
 
 	if (ms > ANTILAG_REWIND_MAXHITSCAN)
 		ms = ANTILAG_REWIND_MAXHITSCAN;
@@ -480,7 +480,7 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	if (cvar("sv_antilag") != 1)
 		return;
 
-	float ms = (atof(ezinfokey(owner, "ping")) / 1000) - 0.013;
+	float ms = (atof(ezinfokey(owner, "ping")) / 1000) - 0.026;
 
 	if (ms > ANTILAG_REWIND_MAXPROJECTILE)
 		ms = ANTILAG_REWIND_MAXPROJECTILE;
@@ -556,7 +556,7 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	if (cvar("sv_antilag") != 1)
 		return;
 
-	float ms = (atof(ezinfokey(owner, "ping")) / 1000) - 0.013;
+	float ms = (atof(ezinfokey(owner, "ping")) / 1000) - 0.026;
 
 	if (ms > ANTILAG_REWIND_MAXPROJECTILE)
 		ms = ANTILAG_REWIND_MAXPROJECTILE;
