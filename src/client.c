@@ -3370,6 +3370,7 @@ void PlayerPreThink()
 	}
 
 	self->client_time += g_globalvars.frametime;
+	time_corrected = g_globalvars.time;
 
 	if (self->sc_stats && self->sc_stats_time && (self->sc_stats_time <= g_globalvars.time)
 			&& (match_in_progress != 1) && !isRACE())
@@ -4122,6 +4123,11 @@ void PlayerPostThink()
 		return;
 	}
 
+	if (self->s.v.deadflag)
+	{
+		return;
+	}
+
 	if (self->client_nextthink && self->client_time >= self->client_nextthink)
 	{
 		float held_client_time = self->client_time;
@@ -4131,11 +4137,6 @@ void PlayerPostThink()
 		((void(*)())(self->client_think))();
 
 		self->client_time = held_client_time;
-	}
-
-	if (self->s.v.deadflag)
-	{
-		return;
 	}
 
 //team

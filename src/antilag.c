@@ -353,6 +353,7 @@ int antilag_getseek(antilag_t *data, float ms)
 void antilag_lagmove_all(gedict_t *e, float ms)
 {
 	float rewind_time = g_globalvars.time - ms;
+	time_corrected = rewind_time;
 
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
@@ -399,6 +400,7 @@ void antilag_lagmove_all(gedict_t *e, float ms)
 void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 {
 	float rewind_time = g_globalvars.time - ms;
+	time_corrected = rewind_time;
 
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
@@ -444,6 +446,8 @@ void antilag_unmove_all()
 {
 	if (cvar("sv_antilag") != 1)
 		return;
+
+	time_corrected = g_globalvars.time;
 
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
@@ -511,7 +515,7 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	VectorAdd(e->s.v.origin, old_org, old_org);
 	trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(old_org));
 	VectorCopy(e->s.v.origin, e->oldangles); // store for later maybe
-	e->s.v.health = ms;
+	e->s.v.armorvalue = ms;
 
 	gedict_t *oself = self;
 
@@ -587,7 +591,7 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	VectorAdd(e->s.v.origin, old_org, old_org);
 	trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(old_org));
 	VectorCopy(e->s.v.origin, e->oldangles); // store for later maybe
-	e->s.v.health = ms;
+	e->s.v.armorvalue = ms;
 
 	gedict_t *oself = self;
 	self = e;

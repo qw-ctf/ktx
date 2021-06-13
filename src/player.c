@@ -1114,6 +1114,8 @@ void DeathSound()
 void PlayerDead()
 {
 	self->s.v.nextthink = -1;
+	self->client_nextthink = 0;
+	self->client_thinkindex = 0;
 // allow respawn after a certain time
 	self->s.v.deadflag = DEAD_DEAD;
 
