@@ -87,7 +87,7 @@ void Physics_Bounce(float dt)
 	else
 		self->s.v.velocity[2] -= 0.5 * dt * gravity_value;
 
-	VectorMA(self->s.v.avelocity, dt, self->s.v.angles, self->s.v.angles);
+	VectorMA(self->s.v.angles, dt, self->s.v.avelocity, self->s.v.angles);
 
 	float movetime, bump;
 	movetime = dt;
