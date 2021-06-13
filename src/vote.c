@@ -1097,7 +1097,7 @@ void antilag()
 			"%s %s!%s\n",
 			self->netname,
 			(self->v.antilag ?
-					redtext(va("votes for antilag %s", OnOff(!(2 == cvar("sv_antilag"))))) :
+					redtext(va("votes for antilag %s", OnOff(!(1 == cvar("sv_antilag"))))) :
 					redtext(va("withdraws %s antilag vote", g_his(self)))),
 			((votes = get_votes_req( OV_ANTILAG, true)) ? va(" (%d)", votes) : ""));
 
