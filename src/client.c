@@ -4165,11 +4165,32 @@ void PlayerPostThink()
 
 	W_WeaponFrame();
 
+	//
+	// Antilag and Weapon Prediction
 	antilag_log(self, self->antilag_data);
+	self->client_predflags = 0;
 	if (cvar("sv_antilag") == 1)
+	{
 		self->client_ping = atof(ezinfokey(self, "ping"));
+
+		if (cvar("k_midair") && (self->super_damage_finished > g_globalvars.time - (self->client_ping)/1000))
+			self->client_predflags = (int)self->client_predflags | PRDFL_MIDAIR;
+	}
 	else
 		self->client_ping = 0;
+
+	if (cvar("k_instagib") && cvar("k_instagib_custom_models"))
+	{
+		self->client_predflags = (int)self->client_predflags | PRDFL_COILGUN;
+		if (cvar("k_instagib") == 3)
+			self->client_predflags = (int)self->client_predflags | PRDFL_MIDAIR;
+	}
+
+	// can't predict hook reliably, so just force prediction off for now
+	if (self->s.v.weapon == IT_HOOK)
+		self->client_predflags = PRDFL_FORCEOFF;
+	//
+	//
 
 	race_player_post_think();
 

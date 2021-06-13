@@ -58,12 +58,12 @@ field_t expfields[] =
 	{ "hideplayers", 		FOFS(hideplayers), 			F_INT },
 	{ "visclients", 		FOFS(visclients), 			F_INT },
 	{ "teleported", 		FOFS(teleported), 			F_INT },
-	{ "attack_finished",	FOFS(attack_finished),		 F_FLOAT },
+	{ "attack_finished",	FOFS(attack_finished),		F_FLOAT },
 	{ "client_time", 		FOFS(client_time), 			F_FLOAT },
 	{ "client_nextthink", 	FOFS(client_nextthink), 	F_FLOAT },
 	{ "client_thinkindex", 	FOFS(client_thinkindex), 	F_FLOAT },
 	{ "client_ping", 		FOFS(client_ping), 			F_FLOAT },
-	{ "client_predflags", 	FOFS(client_predflags), 	F_INT },
+	{ "client_predflags", 	FOFS(client_predflags), 	F_FLOAT },
 	{ NULL }
 };
 
