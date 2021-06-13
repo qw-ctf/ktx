@@ -4166,7 +4166,10 @@ void PlayerPostThink()
 	W_WeaponFrame();
 
 	antilag_log(self, self->antilag_data);
-	self->client_ping = atof(ezinfokey(self, "ping"));
+	if (cvar("sv_antilag") == 1)
+		self->client_ping = atof(ezinfokey(self, "ping"));
+	else
+		self->client_ping = 0;
 
 	race_player_post_think();
 
