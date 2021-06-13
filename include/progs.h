@@ -1196,6 +1196,7 @@ typedef struct gedict_s {
 	func_t client_think;
 	float client_thinkindex;
 	float client_ping;
+	int client_predflags;
 // }
 } gedict_t;
 
