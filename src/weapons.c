@@ -3009,19 +3009,16 @@ void W_WeaponFrame()
 	{
 		if (!readytostart())
 		{
-			self->client_predflags = PRDFL_FORCEOFF;
 			return;	// RA restrictions
 		}
 
 		if (!CA_can_fire(self))
 		{
-			self->client_predflags = PRDFL_FORCEOFF;
 			return;	// CA restrictions
 		}
 
 		if ((match_in_progress == 1) || !can_prewar(true))
 		{
-			self->client_predflags = PRDFL_FORCEOFF;
 			return;
 		}
 
