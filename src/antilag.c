@@ -244,6 +244,9 @@ void antilag_updateworld()
 
 void antilag_lagmove(antilag_t *data, float goal_time)
 {
+	//don't rewind past spawns
+	goal_time = max(goal_time, data->owner->spawn_time);
+
 	int old_seek = data->rewind_seek;
 	int seek = data->rewind_seek - 1;
 	if (seek < 0)
@@ -270,6 +273,10 @@ void antilag_lagmove(antilag_t *data, float goal_time)
 	{
 		vec3_t diff;
 		VectorSubtract(data->rewind_origin[old_seek], data->rewind_origin[seek], diff);
+
+		if (VectorLength(diff) > 48) // whoops, maybe we teleported?
+			frac = 1;
+
 		VectorScale(diff, frac, diff);
 		VectorAdd(data->rewind_origin[seek], diff, lerp_origin);
 	}
@@ -280,6 +287,10 @@ void antilag_lagmove(antilag_t *data, float goal_time)
 
 		vec3_t diff;
 		VectorSubtract(owner->s.v.origin, data->rewind_origin[data->rewind_seek], diff);
+
+		if (VectorLength(diff) > 48) // whoops, maybe we teleported?
+			frac = 1;
+
 		VectorScale(diff, frac, diff);
 		VectorAdd(data->rewind_origin[data->rewind_seek], diff, lerp_origin);
 	}
