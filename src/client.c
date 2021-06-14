@@ -3369,6 +3369,7 @@ void PlayerPreThink()
 		BackFromLag();
 	}
 
+	self->client_predflags = 0;
 	self->client_time += g_globalvars.frametime;
 	time_corrected = g_globalvars.time;
 
@@ -4168,7 +4169,6 @@ void PlayerPostThink()
 	//
 	// Antilag and Weapon Prediction
 	antilag_log(self, self->antilag_data);
-	self->client_predflags = 0;
 	if (cvar("sv_antilag") == 1)
 	{
 		self->client_ping = atof(ezinfokey(self, "ping"));
