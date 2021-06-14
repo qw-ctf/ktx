@@ -2545,6 +2545,7 @@ void DropBackpack()
 	gedict_t *item;
 	float f1;
 	char *playername;
+	char *dropname;
 
 	if (k_bloodfest)
 	{
@@ -2643,52 +2644,61 @@ void DropBackpack()
 	if (item->s.v.items == IT_AXE)
 	{
 		item->netname = "Axe";
+		dropname = "AXE";
 		self->ps.wpn[wpAXE].drops++;
 	}
 	else if (item->s.v.items == IT_SHOTGUN)
 	{
 		item->netname = "Shotgun";
+		dropname = "SG";
 		self->ps.wpn[wpSG].drops++;
 	}
 	else if (item->s.v.items == IT_SUPER_SHOTGUN)
 	{
 		item->netname = "Double-barrelled Shotgun";
+		dropname = "SSG";
 		//item->mdl = "progs/g_shot.mdl";
 		self->ps.wpn[wpSSG].drops++;
 	}
 	else if (item->s.v.items == IT_NAILGUN)
 	{
 		item->netname = "Nailgun";
+		dropname = "NG";
 		//item->mdl = "progs/g_nail.mdl";
 		self->ps.wpn[wpNG].drops++;
 	}
 	else if (item->s.v.items == IT_SUPER_NAILGUN)
 	{
 		item->netname = "Super Nailgun";
+		dropname = "SNG";
 		//item->mdl = "progs/g_nail2.mdl";
 		self->ps.wpn[wpSNG].drops++;
 	}
 	else if (item->s.v.items == IT_GRENADE_LAUNCHER)
 	{
 		item->netname = "Grenade Launcher";
+		dropname = "GL";
 		//item->mdl = "progs/g_rock.mdl";
 		self->ps.wpn[wpGL].drops++;
 	}
 	else if (item->s.v.items == IT_ROCKET_LAUNCHER)
 	{
 		item->netname = "Rocket Launcher";
+		dropname = "{&cf13RL&cfff}";
 		//item->mdl = "progs/g_rock2.mdl";
 		self->ps.wpn[wpRL].drops++;
 	}
 	else if (item->s.v.items == IT_LIGHTNING)
 	{
 		item->netname = "Thunderbolt";
+		dropname = "{&c2aaLG&cfff}";
 		//item->mdl = "progs/g_light.mdl";
 		self->ps.wpn[wpLG].drops++;
 	}
 	else
 	{
 		item->netname = "";
+		dropname = "Nothing";
 	}
 
 	item->s.v.ammo_shells = self->s.v.ammo_shells;
@@ -2707,6 +2717,13 @@ void DropBackpack()
 	}
 
 	playername = self->netname;
+
+	if (cvar("k_drp"))
+	{
+		G_sprint(self, PRINT_HIGH, "DROPPED: %s\n", dropname);
+	}
+
+
 
 	log_printf("\t\t<event>\n"
 				"\t\t\t<drop_backpack>\n"
