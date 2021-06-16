@@ -1780,5 +1780,6 @@ void StartFrame(int time)
 
 	TeamplayGameTick();
 
+	time_corrected = time;
 	antilag_updateworld();
 }
