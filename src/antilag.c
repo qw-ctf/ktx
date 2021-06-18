@@ -519,12 +519,17 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
 	}
 
+	///*
 	vec3_t old_org;
 	VectorCopy(owner->s.v.origin, old_org);
 	antilag_lagmove_all_nohold(owner, ms, true);
 	VectorSubtract(owner->s.v.origin, old_org, old_org);
 	VectorAdd(e->s.v.origin, old_org, old_org);
 	trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(old_org));
+	VectorCopy(e->s.v.origin, e->oldangles); // store for later maybe
+	VectorCopy(owner->antilag_data->held_origin, owner->s.v.origin);
+	//*/
+
 	VectorCopy(e->s.v.origin, e->oldangles); // store for later maybe
 	e->s.v.armorvalue = ms;
 
@@ -595,6 +600,7 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
 	}
 
+	///*
 	vec3_t old_org;
 	VectorCopy(owner->s.v.origin, old_org);
 	antilag_lagmove_all_nohold(owner, ms, true);
@@ -602,6 +608,9 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	VectorAdd(e->s.v.origin, old_org, old_org);
 	trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(old_org));
 	VectorCopy(e->s.v.origin, e->oldangles); // store for later maybe
+	VectorCopy(owner->antilag_data->held_origin, owner->s.v.origin);
+	//*/
+
 	e->s.v.armorvalue = ms;
 
 	gedict_t *oself = self;
