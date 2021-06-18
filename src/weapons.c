@@ -805,8 +805,6 @@ void W_FireShotgun()
 
 	WS_Mark(self, wpSG);
 
-	antilag_lagmove_all_hitscan(self);
-
 	if (cvar("k_instagib"))
 	{
 		self->ps.wpn[wpSG].attacks++;
@@ -848,8 +846,6 @@ void W_FireShotgun()
 	{
 		FireBullets(bullets, dir, 0.04, 0.04, 0, dtSG);
 	}
-
-	antilag_unmove_all();
 }
 #endif
 /*
@@ -861,8 +857,6 @@ void W_FireSuperShotgun()
 {
 	vec3_t dir;
 	int bullets = (k_yawnmode ? 21 : 14);
-
-	antilag_lagmove_all_hitscan(self);
 
 	if (self->s.v.currentammo == 1)
 	{
@@ -902,8 +896,6 @@ void W_FireSuperShotgun()
 	{
 		FireBullets(bullets, dir, 0.14, 0.08, 0, dtSSG);
 	}
-
-	antilag_unmove_all();
 }
 
 /*
@@ -1263,8 +1255,6 @@ void W_FireLightning()
 
 	trap_makevectors(self->s.v.v_angle);
 
-	antilag_lagmove_all_hitscan(self);
-
 // explode if under water
 	if ((self->s.v.waterlevel > 1) && (match_in_progress == 2))
 	{
@@ -1301,7 +1291,7 @@ void W_FireLightning()
 				}
 
 				T_RadiusDamage(self, self, 35 * cells, world, dtLG_DIS);
-
+				
 				return;
 			}
 		}
@@ -1314,6 +1304,7 @@ void W_FireLightning()
 
 			if (!cvar("k_dis"))
 			{
+				antilag_unmove_all();
 				return;
 			}
 
@@ -1369,8 +1360,6 @@ void W_FireLightning()
 // qqshka - not from 'self->s.v.origin' but from 'org'
 //	LightningDamage( self->s.v.origin, tmp, self, 30 );
 	LightningDamage(org, tmp, self, 30);
-
-	antilag_unmove_all();
 }
 
 //=============================================================================
@@ -2253,7 +2242,9 @@ void W_Attack()
 				}
 			}
 
+			antilag_lagmove_all_hitscan(self);
 			W_FireShotgun();
+			antilag_unmove_all();
 			break;
 
 		case IT_SUPER_SHOTGUN:
@@ -2269,7 +2260,9 @@ void W_Attack()
 				self->attack_finished = self->client_time + (k_yawnmode ? 0.8 : 0.7);
 			}
 
+			antilag_lagmove_all_hitscan(self);
 			W_FireSuperShotgun();
+			antilag_unmove_all();
 			break;
 
 		case IT_NAILGUN:
