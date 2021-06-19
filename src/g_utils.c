@@ -1220,7 +1220,7 @@ char* getname(gedict_t *ed)
 // return "his" or "her" depend on gender of player
 char* g_his(gedict_t *ed)
 {
-	static char string[MAX_STRINGS][5];
+	static char string[MAX_STRINGS][8];
 	static int index = 0;
 	char *sex = "his";
 
@@ -1231,6 +1231,10 @@ char* g_his(gedict_t *ed)
 	if (streq(ezinfokey(ed, "gender"), "f"))
 	{
 		sex = "her";
+	}
+	else if (streq(ezinfokey(ed, "gender"), "t"))
+	{
+		sex = "their";
 	}
 
 	string[index][0] = 0;
@@ -1254,6 +1258,10 @@ char* g_he(gedict_t *ed)
 	{
 		sex = "she";
 	}
+	else if (streq(ezinfokey(ed, "gender"), "t"))
+	{
+		sex = "they";
+	}
 
 	string[index][0] = 0;
 	strlcat(string[index], sex, sizeof(string[0]));
@@ -1264,7 +1272,7 @@ char* g_he(gedict_t *ed)
 // return "himself" or "herself" depend on gender of player
 char* g_himself(gedict_t *ed)
 {
-	static char string[MAX_STRINGS][9];
+	static char string[MAX_STRINGS][10];
 	static int index = 0;
 	char *sex = "himself";
 
@@ -1275,6 +1283,10 @@ char* g_himself(gedict_t *ed)
 	if (streq(ezinfokey(ed, "gender"), "f"))
 	{
 		sex = "herself";
+	}
+	else if (streq(ezinfokey(ed, "gender"), "t"))
+	{
+		sex = "themself";
 	}
 
 	string[index][0] = 0;
