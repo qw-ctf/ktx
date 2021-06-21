@@ -1232,7 +1232,7 @@ char* g_his(gedict_t *ed)
 	{
 		sex = "her";
 	}
-	else if (streq(ezinfokey(ed, "gender"), "t"))
+	else if (streq(ezinfokey(ed, "gender"), "n"))
 	{
 		sex = "their";
 	}
@@ -1258,7 +1258,7 @@ char* g_he(gedict_t *ed)
 	{
 		sex = "she";
 	}
-	else if (streq(ezinfokey(ed, "gender"), "t"))
+	else if (streq(ezinfokey(ed, "gender"), "n"))
 	{
 		sex = "they";
 	}
@@ -1284,7 +1284,7 @@ char* g_himself(gedict_t *ed)
 	{
 		sex = "herself";
 	}
-	else if (streq(ezinfokey(ed, "gender"), "t"))
+	else if (streq(ezinfokey(ed, "gender"), "n"))
 	{
 		sex = "themself";
 	}
