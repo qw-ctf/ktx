@@ -257,6 +257,9 @@ void Killed(gedict_t *targ, gedict_t *attacker, gedict_t *inflictor)
 	oself = self;
 	self = targ;
 
+	if (time_corrected > self->teleport_time)
+		antilag_unmove_specific(self);
+
 	if (self->s.v.health < -99)
 	{
 		self->s.v.health = -99;	// don't let sbar look bad if a player

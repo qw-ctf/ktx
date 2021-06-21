@@ -453,7 +453,18 @@ void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 	}
 }
 
-void antilag_unmove_all()
+void antilag_unmove_specific(gedict_t *ent)
+{
+	if (cvar("sv_antilag") != 1)
+		return;
+
+	if (time_corrected >= g_globalvars.time)
+		return;
+
+	trap_setorigin(NUM_FOR_EDICT(ent), PASSVEC3(ent->antilag_data->held_origin));
+}
+
+void antilag_unmove_all(void)
 {
 	if (cvar("sv_antilag") != 1)
 		return;
