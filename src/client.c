@@ -4172,9 +4172,10 @@ void PlayerPostThink()
 	if (cvar("sv_antilag") == 1)
 	{
 		self->client_ping = atof(ezinfokey(self, "ping"));
-
 		if (cvar("k_midair") && (self->super_damage_finished > g_globalvars.time - (self->client_ping)/1000))
 			self->client_predflags = (int)self->client_predflags | PRDFL_MIDAIR;
+
+		self->client_ping = min(self->client_ping, ANTILAG_REWIND_MAXPROJECTILE * 1000);
 	}
 	else
 		self->client_ping = 0;
