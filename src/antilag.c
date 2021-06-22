@@ -546,7 +546,13 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 
 	gedict_t *oself = self;
 
-	float step_time = min(0.05, ms);
+	float step_time = min(cvar("sv_mintic"), ms);
+	if (step_time * VectorLength(e->s.v.velocity) > 32)
+	{
+		// step size * velocity can't be more than player hitbox width, we don't want any shenanigans
+		step_time = 32 / VectorLength(e->s.v.velocity);
+	}
+
 	float current_time = g_globalvars.time - ms;
 	while (current_time < g_globalvars.time)
 	{
@@ -627,7 +633,13 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	gedict_t *oself = self;
 	self = e;
 
-	float step_time = min(0.05, ms);
+	float step_time = min(cvar("sv_mintic"), ms);
+	if (step_time * VectorLength(e->s.v.velocity) > 32)
+	{
+		// step size * velocity can't be more than player hitbox width, we don't want any shenanigans
+		step_time = 32 / VectorLength(e->s.v.velocity);
+	}
+
 	float current_time = g_globalvars.time - ms;
 	while (current_time < g_globalvars.time)
 	{
