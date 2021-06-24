@@ -746,6 +746,7 @@ typedef struct fb_entvars_s {
 #define ANTILAG_REWIND_MAXHITSCAN	 0.180
 #define ANTILAG_REWIND_MAXPROJECTILE 0.1
 #define ANTILAG_TIMESTEP 0.01
+#define ANTILAG_XERP 0.02
 #define ANTILAG_MAXSTATES 40
 #define ANTILAG_MAXEDICTS 256
 struct gedict_s;
