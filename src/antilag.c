@@ -296,8 +296,10 @@ void antilag_lagmove(antilag_t *data, float goal_time)
 		seek = data->rewind_seek;
 	}
 
-	float xerp_time = min(g_globalvars.time - goal_time, ANTILAG_XERP);
+#ifdef ANTILAG_XERP
+	float xerp_time = max(min(g_globalvars.time - goal_time, ANTILAG_XERP), 0);
 	VectorMA(lerp_origin, xerp_time, data->rewind_velocity[seek], lerp_origin);
+#endif
 	trap_setorigin(NUM_FOR_EDICT(owner), PASSVEC3(lerp_origin));
 }
 
@@ -342,8 +344,10 @@ void antilag_getorigin(antilag_t *data, float goal_time)
 		seek = data->rewind_seek;
 	}
 
-	float xerp_time = min(g_globalvars.time - goal_time, ANTILAG_XERP);
+#ifdef ANTILAG_XERP
+	float xerp_time = max(min(g_globalvars.time - goal_time, ANTILAG_XERP), 0);
 	VectorMA(lerp_origin, xerp_time, data->rewind_velocity[seek], lerp_origin);
+#endif
 	VectorCopy(lerp_origin, antilag_origin);
 }
 
