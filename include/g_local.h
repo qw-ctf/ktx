@@ -76,7 +76,7 @@
 
 #define MOD_NAME				("KTX")
 #define MOD_FULLNAME			("KTX: Kombat Teams eXtreme")
-#define MOD_VERSION				("1.40-beta-RekiFork-626211")
+#define MOD_VERSION				("1.40-beta-RekiFork-708211")
 #define MOD_BUILD_DATE			(__DATE__ ", " __TIME__)
 #define MOD_SERVERINFO_MOD_KEY	("ktxver")
 #define MOD_URL    				("https://ktx.deurk.net")
@@ -342,6 +342,7 @@ char		*Enabled( float f );
 char		*Allows( float f );
 char		*Allowed( float f );
 char		*OnOff( float f );
+char		*AntilagModeString( float f );
 
 int			get_scores1();
 int			get_scores2();
