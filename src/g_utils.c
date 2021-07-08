@@ -1852,7 +1852,7 @@ char* OnOff(float f)
 
 char* AntilagModeString(float f)
 {
-	const char *new_antilag_string = "'0 - disabled'";
+	char *new_antilag_string = "'0 - disabled'";
 	if (f == 1)
 		new_antilag_string = "'1 - KTX'";
 	else if (f == 2)

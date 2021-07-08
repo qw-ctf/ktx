@@ -747,6 +747,8 @@ typedef struct fb_entvars_s {
 #define ANTILAG_REWIND_MAXPROJECTILE 0.1
 #define ANTILAG_TIMESTEP 0.01
 //#define ANTILAG_XERP 0
+#define ANTILAG_MAX_PREDICTION 0.02
+#define ANTILAG_MAX_XERP 0.02
 #define ANTILAG_MAXSTATES 40
 #define ANTILAG_MAXEDICTS 256
 struct gedict_s;
@@ -1193,6 +1195,7 @@ typedef struct gedict_s {
 // { antilag
 	struct antilag_s *antilag_data;
 	float client_time;
+	float client_lastupdated;
 	float client_nextthink;
 	func_t client_think;
 	float client_thinkindex;

@@ -957,7 +957,11 @@ void T_MissileExplode_Antilag()
 
 	antilag_t *list = own->antilag_data;
 	VectorCopy(own->s.v.origin, list->held_origin);
+
+	float lupdate = own->client_lastupdated;
+	own->client_lastupdated = 0; // stop us from being extrapolated
 	antilag_lagmove(list, self->gravity);
+	own->client_lastupdated = lupdate;
 
 	// this is awful, but it's the easiest way to exactly replicate the crappy findradius cropping of the splash radius
 	gedict_t *head;
@@ -1054,7 +1058,7 @@ void T_MissileTouch()
 		{
 			delay = (vlen(diff) / vlen(self->s.v.velocity));
 			local_explosion->s.v.flags = (int)self->s.v.flags | FL_GODMODE;
-			delay -= 0.042;
+			delay -= 0.038;
 		}
 		else
 		{
@@ -1064,7 +1068,7 @@ void T_MissileTouch()
 			VectorSubtract(self->s.v.origin, self->oldangles, diff);
 
 			delay = (vlen(diff) / vlen(self->s.v.velocity));
-			delay -= 0.042;
+			delay -= 0.038;
 			//delay = self->s.v.health;
 		}
 

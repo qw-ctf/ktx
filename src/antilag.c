@@ -244,62 +244,72 @@ void antilag_updateworld()
 
 void antilag_lagmove(antilag_t *data, float goal_time)
 {
+	gedict_t *owner = data->owner;
+	vec3_t lerp_origin;
+
 	//don't rewind past spawns
 	goal_time = max(goal_time, data->owner->spawn_time);
-
-	int old_seek = data->rewind_seek;
-	int seek = data->rewind_seek - 1;
-	if (seek < 0)
-		seek = ANTILAG_MAXSTATES - 1;
-
-	float seek_time = data->rewind_time[seek];
-	while (seek != data->rewind_seek && seek_time > goal_time)
+	
+	int no_xerp = true;
+	if (data->owner->client_lastupdated > 0)
 	{
-		old_seek = seek;
-		seek--;
+		if (goal_time > data->owner->client_lastupdated)
+			no_xerp = false;
+	}
+
+	if (no_xerp) // this should be true unless client is stuttering a lot
+	{
+		int old_seek = data->rewind_seek;
+		int seek = data->rewind_seek - 1;
 		if (seek < 0)
 			seek = ANTILAG_MAXSTATES - 1;
-		seek_time = data->rewind_time[seek];
+
+		float seek_time = data->rewind_time[seek];
+		while (seek != data->rewind_seek && seek_time > goal_time)
+		{
+			old_seek = seek;
+			seek--;
+			if (seek < 0)
+				seek = ANTILAG_MAXSTATES - 1;
+			seek_time = data->rewind_time[seek];
+		}
+
+		float under_time = data->rewind_time[old_seek];
+		float over_time = data->rewind_time[seek];
+		float frac = (goal_time - over_time) / (under_time - over_time);
+
+		if (frac <= 1)
+		{
+			vec3_t diff;
+			VectorSubtract(data->rewind_origin[old_seek], data->rewind_origin[seek], diff);
+
+			if (VectorLength(diff) > 48) // whoops, maybe we teleported?
+				frac = 1;
+
+			VectorScale(diff, frac, diff);
+			VectorAdd(data->rewind_origin[seek], diff, lerp_origin);
+		}
+		else
+		{
+			float frac = (goal_time - over_time) / (g_globalvars.time - over_time);
+			frac = min(frac, 1);
+
+			vec3_t diff;
+			VectorSubtract(owner->s.v.origin, data->rewind_origin[data->rewind_seek], diff);
+
+			if (VectorLength(diff) > 48) // whoops, maybe we teleported?
+				frac = 1;
+
+			VectorScale(diff, frac, diff);
+			VectorAdd(data->rewind_origin[data->rewind_seek], diff, lerp_origin);
+			seek = data->rewind_seek;
+		}
 	}
-
-	float under_time = data->rewind_time[old_seek];
-	float over_time = data->rewind_time[seek];
-	float frac = (goal_time - over_time) / (under_time - over_time);
-
-	gedict_t *owner = data->owner;
-
-	vec3_t lerp_origin;
-	if (frac <= 1)
+	else // we need to extrapolate to make up for bad connection
 	{
-		vec3_t diff;
-		VectorSubtract(data->rewind_origin[old_seek], data->rewind_origin[seek], diff);
-
-		if (VectorLength(diff) > 48) // whoops, maybe we teleported?
-			frac = 1;
-
-		VectorScale(diff, frac, diff);
-		VectorAdd(data->rewind_origin[seek], diff, lerp_origin);
-	}
-	else
-	{
-		float frac = (goal_time - over_time) / (g_globalvars.time - over_time);
-		frac = min(frac, 1);
-
-		vec3_t diff;
-		VectorSubtract(owner->s.v.origin, data->rewind_origin[data->rewind_seek], diff);
-
-		if (VectorLength(diff) > 48) // whoops, maybe we teleported?
-			frac = 1;
-
-		VectorScale(diff, frac, diff);
-		VectorAdd(data->rewind_origin[data->rewind_seek], diff, lerp_origin);
-		seek = data->rewind_seek;
+		VectorMA(data->owner->s.v.origin, min(goal_time - data->owner->client_lastupdated, ANTILAG_MAX_XERP), data->owner->s.v.velocity, lerp_origin);
 	}
 
-#ifdef ANTILAG_XERP
-	float xerp_time = max(min(g_globalvars.time - goal_time, ANTILAG_XERP), 0);
-	VectorMA(lerp_origin, xerp_time, data->rewind_velocity[seek], lerp_origin);
-#endif
 	trap_setorigin(NUM_FOR_EDICT(owner), PASSVEC3(lerp_origin));
 }
 
@@ -344,10 +354,6 @@ void antilag_getorigin(antilag_t *data, float goal_time)
 		seek = data->rewind_seek;
 	}
 
-#ifdef ANTILAG_XERP
-	float xerp_time = max(min(g_globalvars.time - goal_time, ANTILAG_XERP), 0);
-	VectorMA(lerp_origin, xerp_time, data->rewind_velocity[seek], lerp_origin);
-#endif
 	VectorCopy(lerp_origin, antilag_origin);
 }
 
@@ -501,7 +507,8 @@ void antilag_lagmove_all_hitscan(gedict_t *e)
 	if (cvar("sv_antilag") != 1)
 		return;
 
-	float ms = (atof(ezinfokey(e, "ping")) / 1000) - 0.026;
+	float ms = (atof(ezinfokey(e, "ping")) / 1000);
+	ms -= (ms < ANTILAG_MAX_PREDICTION ? (1 / 77.0) : ANTILAG_MAX_PREDICTION);
 
 	if (ms > ANTILAG_REWIND_MAXHITSCAN)
 		ms = ANTILAG_REWIND_MAXHITSCAN;
@@ -516,7 +523,8 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	if (cvar("sv_antilag") != 1)
 		return;
 
-	float ms = (atof(ezinfokey(owner, "ping")) / 1000) - 0.026;
+	float ms = (atof(ezinfokey(owner, "ping")) / 1000);
+	ms -= (ms < ANTILAG_MAX_PREDICTION ? (1 / 77.0) : ANTILAG_MAX_PREDICTION);
 
 	if (ms > ANTILAG_REWIND_MAXPROJECTILE)
 		ms = ANTILAG_REWIND_MAXPROJECTILE;
@@ -603,7 +611,8 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	if (cvar("sv_antilag") != 1)
 		return;
 
-	float ms = (atof(ezinfokey(owner, "ping")) / 1000) - 0.026;
+	float ms = (atof(ezinfokey(owner, "ping")) / 1000);
+	ms -= (ms < ANTILAG_MAX_PREDICTION ? (1 / 77.0) : ANTILAG_MAX_PREDICTION);
 
 	if (ms > ANTILAG_REWIND_MAXPROJECTILE)
 		ms = ANTILAG_REWIND_MAXPROJECTILE;
