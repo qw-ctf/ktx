@@ -411,7 +411,7 @@ char		*clean_string(char *s);
 #define PRDFL_MIDAIR	1
 #define PRDFL_COILGUN	2
 #define PRDFL_FORCEOFF	255
-float			time_corrected;
+extern float		time_corrected;
 void			antilag_lagmove(antilag_t *data, float goal_time);
 void			antilag_lagmove_all_hitscan(gedict_t *e);
 void			antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e);
