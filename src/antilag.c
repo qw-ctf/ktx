@@ -17,6 +17,7 @@ antilag_t *antilag_list_world;
 float antilag_nextthink_world;
 vec3_t antilag_origin;
 vec3_t antilag_retvec;
+float time_corrected;
 
 void Physics_PushEntityTrace(float push_x, float push_y, float push_z)
 {
