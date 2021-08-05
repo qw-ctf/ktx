@@ -566,14 +566,14 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	gedict_t *oself = self;
 
 	float step_time = min(cvar("sv_mintic"), ms);
-	if (step_time * VectorLength(e->s.v.velocity) > 32)
+	if (step_time * VectorLength(e->s.v.velocity) > 16)
 	{
 		// step size * velocity can't be more than player hitbox width, we don't want any shenanigans
-		step_time = 32 / VectorLength(e->s.v.velocity);
+		step_time = 16 / VectorLength(e->s.v.velocity);
 	}
 
 	float current_time = g_globalvars.time - ms;
-	while (current_time < g_globalvars.time)
+	while (current_time <= g_globalvars.time)
 	{
 		time_corrected = current_time;
 		step_time = bound(0.01, min(step_time, (g_globalvars.time - current_time) - 0.01), 0.05);
