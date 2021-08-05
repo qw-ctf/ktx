@@ -962,7 +962,7 @@ void T_MissileExplode_Antilag()
 				// add platform travel velocity * delay to the rocket position
 				// this is a hack that could misbehave in certain circumstances
 				vec3_t trav_off;
-				VectorScale(trace_hit->s.v.velocity, self->gravity, trav_off);
+				VectorScale(trace_hit->s.v.velocity, self->gravity + 0.040, trav_off);
 				VectorAdd(self->s.v.origin, trav_off, trav_off);
 				trap_setorigin(NUM_FOR_EDICT(self), PASSVEC3(trav_off));
 			}

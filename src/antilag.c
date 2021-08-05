@@ -234,7 +234,7 @@ void antilag_updateworld()
 	if (g_globalvars.time < antilag_nextthink_world)
 		return;
 
-	antilag_nextthink_world = g_globalvars.time + 0.05;
+	antilag_nextthink_world = g_globalvars.time + cvar("sv_mintic");
 	
 	antilag_t *list;
 	for (list = antilag_list_world; list != NULL; list = list->next)
@@ -425,6 +425,24 @@ void antilag_lagmove_all(gedict_t *e, float ms)
 	}
 }
 
+void antilag_lagmove_all_playeronly(gedict_t *e, float ms)
+{
+	float rewind_time = g_globalvars.time - ms;
+	time_corrected = rewind_time;
+
+	antilag_t *list;
+	for (list = antilag_list_players; list != NULL; list = list->next)
+	{
+		if (list->owner->s.v.health <= 0)
+			continue;
+
+		if (list->owner == e)
+			continue;
+
+		antilag_lagmove(list, rewind_time);
+	}
+}
+
 void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 {
 	float rewind_time = g_globalvars.time - ms;
@@ -566,10 +584,10 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	gedict_t *oself = self;
 
 	float step_time = min(cvar("sv_mintic"), ms);
-	if (step_time * VectorLength(e->s.v.velocity) > 16)
+	if (step_time * VectorLength(e->s.v.velocity) > 3)
 	{
 		// step size * velocity can't be more than player hitbox width, we don't want any shenanigans
-		step_time = 16 / VectorLength(e->s.v.velocity);
+		step_time = 8 / VectorLength(e->s.v.velocity);
 	}
 
 	float current_time = g_globalvars.time - ms;
@@ -579,7 +597,8 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 		step_time = bound(0.01, min(step_time, (g_globalvars.time - current_time) - 0.01), 0.05);
 		if (e->s.v.nextthink) { e->s.v.nextthink -= step_time; }
 
-		antilag_lagmove_all_nohold(owner, (g_globalvars.time - current_time), false);
+		//antilag_lagmove_all_nohold(owner, (g_globalvars.time - current_time), false);
+		antilag_lagmove_all_playeronly(owner, (g_globalvars.time - current_time));
 		traceline(PASSVEC3(e->s.v.origin), e->s.v.origin[0] + e->s.v.velocity[0] * step_time,
 			e->s.v.origin[1] + e->s.v.velocity[1] * step_time, e->s.v.origin[2] + e->s.v.velocity[2] * step_time,
 			false, e);
@@ -667,7 +686,7 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	{
 		step_time = bound(0.01, min(step_time, (g_globalvars.time - current_time) - 0.01), 0.05);
 		
-		antilag_lagmove_all_nohold(owner, (g_globalvars.time - current_time), false);
+		antilag_lagmove_all_playeronly(owner, (g_globalvars.time - current_time));
 		Physics_Bounce(step_time);
 		if (self->s.v.nextthink) { self->s.v.nextthink -= step_time; }
 		current_time += step_time;
