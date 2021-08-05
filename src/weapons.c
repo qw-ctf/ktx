@@ -947,21 +947,27 @@ void T_InstaKickback()
 
 void T_MissileExplode_Antilag()
 {
+	gedict_t *own = PROG_TO_EDICT(self->s.v.owner);
+
 	if ((int)self->s.v.flags & FL_GODMODE)
 	{
 		traceline(PASSVEC3(self->oldangles), PASSVEC3(self->s.v.origin), true, self);
 		trap_setorigin(NUM_FOR_EDICT(self), PASSVEC3(g_globalvars.trace_endpos));
+
+		gedict_t *trace_hit = self->oldenemy;
+		if (trace_hit != NULL)
+		{
+			if (trace_hit->antilag_data != NULL && trace_hit->s.v.solid == SOLID_BSP)
+			{
+				// add platform travel velocity * delay to the rocket position
+				// this is a hack that could misbehave in certain circumstances
+				vec3_t trav_off;
+				VectorScale(trace_hit->s.v.velocity, self->gravity, trav_off);
+				VectorAdd(self->s.v.origin, trav_off, trav_off);
+				trap_setorigin(NUM_FOR_EDICT(self), PASSVEC3(trav_off));
+			}
+		}
 	}
-
-	gedict_t *own = PROG_TO_EDICT(self->s.v.owner);
-
-	antilag_t *list = own->antilag_data;
-	VectorCopy(own->s.v.origin, list->held_origin);
-
-	float lupdate = own->client_lastupdated;
-	own->client_lastupdated = 0; // stop us from being extrapolated
-	antilag_lagmove(list, self->gravity);
-	own->client_lastupdated = lupdate;
 
 	// this is awful, but it's the easiest way to exactly replicate the crappy findradius cropping of the splash radius
 	gedict_t *head;
@@ -976,8 +982,6 @@ void T_MissileExplode_Antilag()
 
 		head = trap_findradius(head, self->s.v.origin, 160);
 	}
-
-	trap_setorigin(NUM_FOR_EDICT(own), PASSVEC3(list->held_origin));
 	ent_remove(self);
 }
 
@@ -1040,6 +1044,7 @@ void T_MissileTouch()
 
 	// don't do radius damage to the other, because all the damage
 	// was done in the impact
+	///*
 	if (cvar("sv_antilag") == 1) // if this is an anti lag rocket, ignore our owner
 	{
 		T_RadiusDamage_Ignore2(self, PROG_TO_EDICT(self->s.v.owner), 120, other, PROG_TO_EDICT(self->s.v.owner), dtRL);
@@ -1051,6 +1056,7 @@ void T_MissileTouch()
 		trap_setorigin(NUM_FOR_EDICT(local_explosion), PASSVEC3(self->s.v.origin));
 		VectorCopy(self->oldangles, local_explosion->oldangles);
 		local_explosion->s.v.owner = self->s.v.owner;
+		local_explosion->oldenemy = other;
 
 		float delay;
 
@@ -1072,10 +1078,11 @@ void T_MissileTouch()
 			//delay = self->s.v.health;
 		}
 
-		if (delay > 0.05)
+		local_explosion->gravity = g_globalvars.time - time_corrected;
+
+		if (delay > 0.013)
 		{
 			local_explosion->s.v.nextthink = g_globalvars.time + delay;
-			local_explosion->gravity = g_globalvars.time + delay;
 			local_explosion->think = (func_t)T_MissileExplode_Antilag;
 		}
 		else
@@ -1083,13 +1090,13 @@ void T_MissileTouch()
 			delay = 0;
 			gedict_t *oself = self;
 			self = local_explosion;
-			self->gravity = g_globalvars.time;
 			T_MissileExplode_Antilag();
 			self = oself;
 		}
 	}
 	else
 		T_RadiusDamage(self, PROG_TO_EDICT(self->s.v.owner), 120, other, dtRL);
+	//*/
 
 //  sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 	normalize(self->s.v.velocity, tmp);

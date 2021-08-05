@@ -76,7 +76,7 @@
 
 #define MOD_NAME				("KTX")
 #define MOD_FULLNAME			("KTX: Kombat Teams eXtreme")
-#define MOD_VERSION				("1.40-beta-quakecon")
+#define MOD_VERSION				("1.40-beta-quakecon-release2")
 #define MOD_BUILD_DATE			(__DATE__ ", " __TIME__)
 #define MOD_SERVERINFO_MOD_KEY	("ktxver")
 #define MOD_URL    				("https://ktx.deurk.net")
@@ -413,6 +413,7 @@ char		*clean_string(char *s);
 #define PRDFL_FORCEOFF	255
 extern float		time_corrected;
 void			antilag_lagmove(antilag_t *data, float goal_time);
+void			antilag_lagmove_all(gedict_t *e, float goal_time);
 void			antilag_lagmove_all_hitscan(gedict_t *e);
 void			antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e);
 void			antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e);
