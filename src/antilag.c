@@ -575,6 +575,7 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	float current_time = g_globalvars.time - ms;
 	while (current_time < g_globalvars.time)
 	{
+		time_corrected = current_time;
 		step_time = bound(0.01, min(step_time, (g_globalvars.time - current_time) - 0.01), 0.05);
 		if (e->s.v.nextthink) { e->s.v.nextthink -= step_time; }
 
@@ -604,6 +605,7 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 
 	// restore origins to held values
 	antilag_unmove_all();
+	time_corrected = g_globalvars.time;
 }
 
 
