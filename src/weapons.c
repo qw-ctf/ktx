@@ -1221,7 +1221,14 @@ void LightningHit(gedict_t *from, float damage)
  */
 void LightningDamage(vec3_t p1, vec3_t p2, gedict_t *from, float damage)
 {
+	int from_player = (from->classname == "player");
+	if (from_player)
+		antilag_lagmove_all_hitscan(from);
+
 	traceline(PASSVEC3(p1), PASSVEC3(p2), false, from);
+
+	if (from_player)
+		antilag_unmove_all();
 
 	if (PROG_TO_EDICT(g_globalvars.trace_ent)->s.v.takedamage)
 	{
@@ -1301,8 +1308,10 @@ void W_FireLightning()
 					return;
 				}
 
+				antilag_lagmove_all_hitscan(self);
 				T_RadiusDamage(self, self, 35 * cells, world, dtLG_DIS);
-				
+				antilag_unmove_all();
+
 				return;
 			}
 		}
@@ -1315,11 +1324,12 @@ void W_FireLightning()
 
 			if (!cvar("k_dis"))
 			{
-				antilag_unmove_all();
 				return;
 			}
 
+			antilag_lagmove_all_hitscan(self);
 			T_RadiusDamage(self, self, 35 * cells, world, dtLG_DIS);
+			antilag_unmove_all();
 
 			return;
 		}

@@ -626,9 +626,9 @@ void player_light1()
 
 	SuperDamageSound();
 
-	antilag_lagmove_all_hitscan(self);
+	//antilag_lagmove_all_hitscan(self);
 	W_FireLightning();
-	antilag_unmove_all();
+	//antilag_unmove_all();
 
 	self->attack_finished = self->client_time + 0.2;
 }
@@ -667,9 +667,9 @@ void player_light2()
 
 	SuperDamageSound();
 
-	antilag_lagmove_all_hitscan(self);
+	//antilag_lagmove_all_hitscan(self);
 	W_FireLightning();
-	antilag_unmove_all();
+	//antilag_unmove_all();
 
 	self->attack_finished = self->client_time + 0.2;
 }
