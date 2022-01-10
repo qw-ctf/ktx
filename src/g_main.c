@@ -57,19 +57,31 @@ field_t expfields[] =
 	{ "trackent", 			FOFS(trackent), 			F_INT },
 	{ "hideplayers", 		FOFS(hideplayers), 			F_INT },
 	{ "visclients", 		FOFS(visclients), 			F_INT },
-	{ "teleported", 		FOFS(teleported), 			F_INT },
+// FTE does not support this.
+// We does not really have to explicitly disable them since server engine should ignore unsupported fields.
+// But Spike insists on this. Probably for clarity.
+#ifndef FTESV
+	{ "mod_admin", 			FOFS(k_admin), 		F_INT },
+	{ "teleported", 		FOFS(teleported), 	F_INT },
 	{ "attack_finished",	FOFS(attack_finished),		F_FLOAT },
 	{ "client_time", 		FOFS(client_time), 			F_FLOAT },
 	{ "client_nextthink", 	FOFS(client_nextthink), 	F_FLOAT },
 	{ "client_thinkindex", 	FOFS(client_thinkindex), 	F_FLOAT },
 	{ "client_ping", 		FOFS(client_ping), 			F_FLOAT },
 	{ "client_predflags", 	FOFS(client_predflags), 	F_FLOAT },
+#endif
 	{ NULL }
 };
 
-//static char     mapname[64];
-//static char     worldmodel[64] = "worldmodel";
-//static char     netnames[MAX_CLIENTS][32];
+char mapname[64];
+static char worldmodel[64] = "worldmodel"; // FIXME: consider replacing usage of this with mapname.
+
+// Client names assigned in:
+// * G_InitGame()
+// * GAME_CLIENT_CONNECT
+// * ClientUserInfoChanged()
+static char netnames[MAX_CLIENTS][CLIENT_NAME_LEN];
+
 static char callalias_buf[MAX_CLIENTS][CALLALIAS_SIZE];
 static char f_checks[MAX_CLIENTS][F_CHECK_SIZE];
 
@@ -83,11 +95,12 @@ gameData_t gamedata =
 
 float starttime;
 int g_matchstarttime;
+int sv_extensions;
 void G_InitGame(int levelTime, int randomSeed);
 void G_ShutDown();
 void StartFrame(int time);
 qbool ClientCommand();
-qbool ClientUserInfoChanged();
+qbool ClientUserInfoChanged(int after);
 void G_EdictTouch();
 void G_EdictThink();
 void G_EdictBlocked();
@@ -105,6 +118,8 @@ void SaveLevelStartParams(gedict_t *e);
 
 qbool FTE_sv = false;
 
+static qbool G_InitExtensions(void);
+
 /*
  ================
  vmMain
@@ -113,8 +128,10 @@ qbool FTE_sv = false;
  This must be the very first function compiled into the .q3vm file
  ================
  */
-intptr_t vmMain(int command, int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6,
-				int arg7, int arg8, int arg9, int arg10, int arg11)
+intptr_t VISIBILITY_VISIBLE vmMain(
+				int command,
+				int arg0, int arg1, int arg2, int arg3,	int arg4,
+				int arg5, int arg6,	int arg7, int arg8, int arg9, int arg10, int arg11)
 {
 	int api_ver;
 
@@ -123,8 +140,10 @@ intptr_t vmMain(int command, int arg0, int arg1, int arg2, int arg3, int arg4, i
 		case GAME_INIT:
 			ClearGlobals();
 			api_ver = trap_GetApiVersion();
+#if defined(idx64) || defined(PR_ALWAYS_REFS)
 			// We set references
 			cvar_fset("sv_pr2references", 1);
+#endif
 			if (api_ver < GAME_API_VERSION)
 			{
 				G_cprint("Mod requires API_VERSION %d or higher, server have %d\n",
@@ -135,9 +154,12 @@ intptr_t vmMain(int command, int arg0, int arg1, int arg2, int arg3, int arg4, i
 
 			if (strstr(ezinfokey(world, "*version"), "FTE"))
 			{
-				G_cprint("KTX: FTE server detected\n");
+				G_cprint("^2KTX: FTE server detected, yay!\n");
 				FTE_sv = true;
 			}
+
+			if (!G_InitExtensions())
+				return 0;
 
 			G_InitGame(arg0, arg1);
 
@@ -164,6 +186,13 @@ intptr_t vmMain(int command, int arg0, int arg1, int arg2, int arg3, int arg4, i
 			}
 			else
 			{
+				if (framecount == 0)
+				{
+					infokey(world, "mapname", mapname, sizeof(mapname));
+					infokey(world, "modelname", worldmodel, sizeof(worldmodel));
+					world->model = worldmodel;
+				}
+
 				StartFrame(arg0);
 			}
 
@@ -172,6 +201,10 @@ intptr_t vmMain(int command, int arg0, int arg1, int arg2, int arg3, int arg4, i
 		case GAME_CLIENT_CONNECT:
 			ClearGlobals();
 			self = PROG_TO_EDICT(g_globalvars.self);
+
+			// Init client name.
+			self->netname = netnames[NUM_FOR_EDICT(self)-1];
+			infokey(self, "name", self->netname, CLIENT_NAME_LEN);
 
 			self->last_rune = "setme";
 			self->classname = ""; // at least empty classname
@@ -349,9 +382,13 @@ intptr_t vmMain(int command, int arg0, int arg1, int arg2, int arg3, int arg4, i
 			return ClientCommand();
 
 		case GAME_CLIENT_USERINFO_CHANGED:
-			// called on user /cmd setinfo	if value changed
-			// return not zero dont allow change
-			// params like GAME_CLIENT_COMMAND, but argv(0) always "setinfo" and argc always 3
+			// Called when client userinfo is changed.
+			// Return non zero zero if such userinfo invalid.
+			// argv(0) = "setinfo", argv(1) = key, argv(2) = value.
+			// Userinfo change performed in two stages,
+			// first stage is when server and mod validating if new userinfo is allowed,
+			// during this stage argument 'after' is zero, after userinfo allowed
+			// server execute this function second time with non zero 'after' argument.
 			ClearGlobals();
 			self = PROG_TO_EDICT(g_globalvars.self);
 			if (!self->k_accepted)
@@ -360,7 +397,7 @@ intptr_t vmMain(int command, int arg0, int arg1, int arg2, int arg3, int arg4, i
 			}
 
 			// allow change even not connected, or disconnected
-			return ClientUserInfoChanged();
+			return ClientUserInfoChanged(arg0);
 
 		case GAME_SHUTDOWN:
 			// called before level change/spawn
@@ -429,50 +466,21 @@ void G_Error(const char *fmt, ...)
 	trap_Error(text);
 }
 
-void Com_Error(int level, const char *error, ...)
-{
-	va_list argptr;
-	char text[1024];
-
-	va_start(argptr, error);
-	Q_vsnprintf(text, sizeof(text), error, argptr);
-	va_end(argptr);
-
-	G_Error("%s", text);
-}
-
-void Com_Printf(const char *msg, ...)
-{
-	va_list argptr;
-	char text[1024];
-
-	va_start(argptr, msg);
-	Q_vsnprintf(text, sizeof(text), msg, argptr);
-	va_end(argptr);
-
-	G_Printf("%s", text);
-}
-
 //===================================================================
 
 void G_InitGame(int levelTime, int randomSeed)
 {
-//	int 		i;
+	int 		i;
 
 	srand(randomSeed);
 	framecount = 0;
 	starttime = levelTime * 0.001;
-	g_globalvars.mapname_ = GOFS(mapname);
 	G_Printf("Init Game\n");
 	G_InitMemory();
 	memset(g_edicts, 0, sizeof(gedict_t) * MAX_EDICTS);
-
-//	world->model = worldmodel;
-//	g_globalvars.mapname = mapname;
-//	for ( i = 0; i < MAX_CLIENTS; i++ )
-//	{
-//		g_edicts[i + 1].s.v.netname = netnames[i];
-//	}
+	for ( i = 0; i < MAX_CLIENTS; i++ ) {
+		g_edicts[i + 1].netname = netnames[i];
+	}
 
 	GetMapList();
 
@@ -493,6 +501,8 @@ void G_InitGame(int levelTime, int randomSeed)
 	cvar_set("qwm_platform", QW_PLATFORM_SHORT);
 	cvar_set("qwm_builddate", MOD_BUILD_DATE);
 	cvar_set("qwm_homepage", MOD_URL);
+
+	sv_extensions = cvar("sv_mod_extensions");
 }
 
 void G_ShutDown()
@@ -500,7 +510,7 @@ void G_ShutDown()
 	extern int IsMapInCycle(char *map);
 	extern qbool force_map_reset;
 
-	char *map = g_globalvars.mapname;
+	char *map = mapname;
 
 	AbortElect();
 
@@ -620,3 +630,47 @@ static qbool check_ezquake(gedict_t *p)
 
 	return false;
 }
+
+//===========================================================================
+
+#ifdef FTESV
+
+qbool haveextensiontab[G_EXTENSIONS_LAST-G_EXTENSIONS_FIRST];
+
+static qbool G_InitExtensions(void)
+{
+	qbool success = true;
+	struct
+	{
+		const char *name;
+		int id;
+	} exttraps[] =
+	{
+		{"SetExtField",			G_SETEXTFIELD},
+		{"GetExtField",			G_GETEXTFIELD},
+		{"ChangeLevelHub",		G_CHANGELEVEL_HUB},
+		{"URI_Query",			G_URI_QUERY},
+		{"particleeffectnum",	G_PARTICLEEFFECTNUM},
+		{"trailparticles",		G_TRAILPARTICLES},
+		{"pointparticles",		G_POINTPARTICLES},
+		{"clientstat",			G_CLIENTSTAT},
+		{"pointerstat",			G_POINTERSTAT},
+	};
+	int i;
+	for (i = 0; i < sizeof(exttraps)/sizeof(exttraps[0]); i++)
+	{
+		haveextensiontab[exttraps[i].id-G_EXTENSIONS_FIRST] = trap_Map_Extension(exttraps[i].name, exttraps[i].id)>=0;
+	}
+
+	//
+	// Here you should check extensions which required and terminate server if something is missed.
+	//
+
+	return success;
+}
+#else
+static qbool G_InitExtensions(void)
+{
+	return true;
+}
+#endif

@@ -27,7 +27,7 @@ int CA_wins_required(void)
 
 	k_clan_arena_rounds += (k_clan_arena_rounds % 2) ? 0 : 1;
 
-	return (k_clan_arena_rounds + 1) / 2;
+	return ((k_clan_arena_rounds + 1) / 2);
 }
 
 qbool isCA()
@@ -65,7 +65,7 @@ void apply_CA_settings(void)
 		G_cprint("%s", buf);
 	}
 
-	cfg_name = va("configs/usermodes/ca/%s.cfg", g_globalvars.mapname);
+	cfg_name = va("configs/usermodes/ca/%s.cfg", mapname);
 	if (can_exec(cfg_name))
 	{
 		trap_readcmd(va("exec %s\n", cfg_name), buf, sizeof(buf));
@@ -167,7 +167,7 @@ qbool CA_can_fire(gedict_t *p)
 		return true;
 	}
 
-	return (ISLIVE(p) && ra_match_fight == 2 && time_to_start && g_globalvars.time >= time_to_start);
+	return (ISLIVE(p) && (ra_match_fight == 2) && time_to_start && (g_globalvars.time >= time_to_start));
 }
 
 // return 0 if there no alive teams

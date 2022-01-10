@@ -18,7 +18,6 @@
  */
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 void NextLevel();
 void IdlebotForceStart();
@@ -375,12 +374,12 @@ void EndMatch(float skip_log)
 	{
 		for (f1 = 666; k_teamid >= f1; f1++)
 		{
-			localcmd("localinfo %d \"\"\n", (int) f1); //removing key
+			localcmd("localinfo %d \"\"\n", (int)f1); //removing key
 		}
 
 		for (f1 = 1; k_userid >= f1; f1++)
 		{
-			localcmd("localinfo %d \"\"\n", (int) f1); //removing key
+			localcmd("localinfo %d \"\"\n", (int)f1); //removing key
 		}
 	}
 
@@ -460,9 +459,9 @@ void SaveOvertimeStats()
 		for (p = world; (p = find_plr(p));)
 		{
 			// save overtime stats
-			p->ps.ot_a = (int) p->s.v.armorvalue;
+			p->ps.ot_a = (int)p->s.v.armorvalue;
 			p->ps.ot_items = p->s.v.items; // float
-			p->ps.ot_h = (int) p->s.v.health;
+			p->ps.ot_h = (int)p->s.v.health;
 		}
 	}
 }
@@ -473,13 +472,20 @@ void CheckOvertime()
 	// Therefore, teams != 2 yet and the function doesn't do anything.
 	// This causes matchless CTF to go into perpetual overtime, since "sc = get_scores1() - get_scores2();" calculated below will always return 0.
 	// So, we call this function here to handle this scenario.
+	gedict_t *timer, *ed1, *ed2 ;
+	int teams, players ;
+	int sc;
+	int k_mb_overtime;
+	int k_exttime; 
+
 	SM_PrepareShowscores();
 
-	gedict_t *timer, *ed1 = get_ed_scores1(), *ed2 = get_ed_scores2();
-	int teams = CountTeams(), players = CountPlayers();
-	int sc = get_scores1() - get_scores2();
-	int k_mb_overtime = cvar("k_overtime");
-	int k_exttime = bound(1, cvar("k_exttime"), 999); // at least some reasonable values
+	ed1 = get_ed_scores1(); ed2 = get_ed_scores2();
+	teams = CountTeams();
+	players = CountPlayers();
+	sc = get_scores1() - get_scores2();
+	k_mb_overtime = cvar("k_overtime");
+	k_exttime = bound(1, cvar("k_exttime"), 999); // at least some reasonable values
 
 	// In hoonymode the round is timing out, not the match - we're effectively always in suddendeath mode
 	if (isHoonyModeAny())
@@ -551,7 +557,7 @@ void CheckOvertime()
 		// Ok its increase time
 		self->cnt = k_exttime;
 		self->cnt2 = 60;
-		localcmd("serverinfo status \"%d min left\"\n", (int) self->cnt);
+		localcmd("serverinfo status \"%d min left\"\n", (int)self->cnt);
 
 		G_bprint(2, "\220%s\221 minute%s overtime follows\n", dig3(k_exttime), count_s(k_exttime));
 		self->s.v.nextthink = g_globalvars.time + 1;
@@ -674,7 +680,7 @@ void TimerThink()
 		self->cnt2 = 60;
 		self->cnt -= 1;
 
-		localcmd("serverinfo status \"%d min left\"\n", (int) self->cnt);
+		localcmd("serverinfo status \"%d min left\"\n", (int)self->cnt);
 
 		if (!self->cnt)
 		{
@@ -689,17 +695,81 @@ void TimerThink()
 
 		if (k_showscores)
 		{
-			int sc = get_scores1() - get_scores2();
-
-			if (sc)
+			if ((current_umode < 11) || (current_umode > 13))
 			{
-				G_bprint(2, "%s \220%s\221 leads by %s frag%s\n", redtext("Team"),
-							cvar_string((sc > 0 ? "_k_team1" : "_k_team2")), dig3(abs((int) sc)),
-							count_s(abs((int) sc)));
+				int sc = get_scores1() - get_scores2();
+
+				if (sc)
+				{
+					G_bprint(2, "%s \220%s\221 leads by %s frag%s\n", redtext("Team"),
+								cvar_string((sc > 0 ? "_k_team1" : "_k_team2")), dig3(abs((int)sc)),
+								count_s(abs((int)sc)));
+				}
+				else
+				{
+					G_bprint(2, "The game is currently a tie\n");
+				}
 			}
 			else
 			{
-				G_bprint(2, "The game is currently a tie\n");
+				// if the current UserMode is 2on2on2, 3on3on3, 4on4on4, we have 3 teams
+				int s1 = get_scores1();
+				int s2 = get_scores2();
+				int s3 = get_scores3();
+				int sc;
+
+				if ((s1 > s2) && (s1 > s3))
+				{
+					// Team 1 is leading
+					if (s2 > s3)
+					{
+						sc = get_scores1() - get_scores2();
+					}
+					else
+					{
+						sc = get_scores1() - get_scores3();
+					}
+
+					G_bprint(2, "%s \220%s\221 leads by %s frag%s\n", redtext("Team"),
+								cvar_string("_k_team1"), dig3(abs((int)sc)),
+								count_s(abs((int)sc)));
+				}
+				else if ((s2 > s1) && (s2 > s3))
+				{
+					// Team 2 is leading
+					if (s1 > s3)
+					{
+						sc = get_scores2() - get_scores1();
+					}
+					else
+					{
+						sc = get_scores2() - get_scores3();
+					}
+
+					G_bprint(2, "%s \220%s\221 leads by %s frag%s\n", redtext("Team"),
+								cvar_string("_k_team2"), dig3(abs((int)sc)),
+								count_s(abs((int)sc)));
+				}
+				else if ((s3 > s1) && (s3 > s2))
+				{
+					// Team 3 is leading
+					if (s1 > s2)
+					{
+						sc = get_scores3() - get_scores1();
+					}
+					else
+					{
+						sc = get_scores3() - get_scores3();
+					}
+
+					G_bprint(2, "%s \220%s\221 leads by %s frag%s\n", redtext("Team"),
+								cvar_string("_k_team3"), dig3(abs((int)sc)),
+								count_s(abs((int)sc)));
+				}
+				else
+				{
+					G_bprint(2, "The game is currently a tie\n");
+				}
 			}
 		}
 
@@ -778,7 +848,7 @@ void SM_PrepareMap()
 			{
 				if (streq(p->classname, "item_shells") || streq(p->classname, "item_spikes")
 						|| streq(p->classname, "item_rockets") || streq(p->classname, "item_cells")
-						|| (streq(p->classname, "item_health") && ((int) p->s.v.spawnflags & H_MEGA)))
+						|| (streq(p->classname, "item_health") && ((int)p->s.v.spawnflags & H_MEGA)))
 				{ // no weapon ammo and megahealth for dmm4
 					soft_ent_remove(p);
 					continue;
@@ -925,14 +995,18 @@ static void SM_ExecuteQueuedSpawnEffects(void)
 void SM_PrepareShowscores()
 {
 	gedict_t *p;
-	char *team1 = "", *team2 = "";
+	char *team1 = "";
+	char *team2 = "";
+	char *team3 = "";
 
 	if (k_matchLess && !isCTF()) // skip this in matchLess mode, unless CTF matchless (otherwise causes unlimited overtime because "sc" is always = 0 in CheckOvertime())
 	{
 		return;
 	}
 
-	if (((!isTeam() && !isCTF()) || (CountRTeams() != 2)) && !(isCTF() && k_matchLess)) // we need 2 ready teams, unless CTF matchless
+	if (((!isTeam() && !isCTF())
+			|| ((CountRTeams() != 2) && (CountRTeams() != 3)))
+			&& !(isCTF() && k_matchLess)) // we need 2 ready teams, unless CTF matchless
 	{
 		return;
 	}
@@ -966,17 +1040,47 @@ void SM_PrepareShowscores()
 
 	cvar_set("_k_team1", team1);
 	cvar_set("_k_team2", team2);
+	if ((current_umode >= 11) && (current_umode <= 13))
+	{
+		// let's see if there is a player with a 3rd team
+		while ((p = find_plr(p)))
+		{
+			team3 = getteam(p);
+
+			if (strneq(team1, team3) && strneq(team2, team3))
+			{
+				break;
+			}
+		}
+
+		if (strnull(team3) || streq(team1, team3) || streq(team2, team3))
+		{
+			return;
+		}
+
+		cvar_set("_k_team3", team3);
+	}
 }
 
 void SM_PrepareHostname()
 {
-	char *team1 = cvar_string("_k_team1"), *team2 = cvar_string("_k_team2");
+	char *team1 = cvar_string("_k_team1");
+	char *team2 = cvar_string("_k_team2");
 
 	cvar_set("_k_host", cvar_string("hostname"));  // save host name at match start
 
 	if (k_showscores && !strnull(team1) && !strnull(team2))
 	{
-		cvar_set("hostname", va("%s (%.4s vs. %.4s)\207", cvar_string("hostname"), team1, team2));
+		if ((current_umode < 11) || (current_umode > 13))
+		{
+			cvar_set("hostname", va("%s (%.4s vs. %.4s)\207", cvar_string("hostname"), team1, team2));
+		}
+		else
+		{
+			char *team3 = cvar_string("_k_team3");
+
+			cvar_set("hostname", va("%s (%.4s vs. %.4s vs. %.4s)\207", cvar_string("hostname"), team1, team2, team3));
+		}
 	}
 	else
 	{
@@ -1096,7 +1200,7 @@ void StartMatch()
 	{
 		self->cnt = bound(0, timelimit, 9999);
 		self->cnt2 = 60;
-		localcmd("serverinfo status \"%d min left\"\n", (int) timelimit);
+		localcmd("serverinfo status \"%d min left\"\n", (int)timelimit);
 		match_end_time = match_start_time + self->cnt * 60;
 	}
 
@@ -1356,7 +1460,7 @@ void PrintCountdown(int seconds)
 
 		if (cvar("sv_antilag"))
 		{
-			strlcat(text, va("%s %5s\n", "Antilag", dig3((int) cvar("sv_antilag"))), sizeof(text));
+			strlcat(text, va("%s %5s\n", "Antilag", dig3((int)cvar("sv_antilag"))), sizeof(text));
 		}
 
 		if (cvar("k_drp"))
@@ -1448,7 +1552,7 @@ void PrintCountdown(int seconds)
 		strlcat(text, va("%s %3s\n", "Fraglimit", dig3(fraglimit)), sizeof(text));
 	}
 
-	switch ((int) cvar("k_overtime"))
+	switch ((int)cvar("k_overtime"))
 	{
 		case 0:
 			ot = redtext("off");
@@ -1490,7 +1594,7 @@ void PrintCountdown(int seconds)
 	}
 
 	if ((deathmatch == 4) && !cvar("k_midair") && !cvar("k_instagib")
-			&& !strnull(nowp = str_noweapon((int) cvar("k_disallow_weapons") & DA_WPNS)))
+			&& !strnull(nowp = str_noweapon((int)cvar("k_disallow_weapons") & DA_WPNS)))
 	{
 		strlcat(text, va("\n%s %4s\n", "Noweapon", redtext(nowp[0] == 32 ? (nowp + 1) : nowp)),
 				sizeof(text));
@@ -1524,7 +1628,7 @@ void PrintCountdown(int seconds)
 		strlcat(text, "\nno matchtag\n\n\n", sizeof(text));
 	}
 
-	G_cp2all(text);
+	G_cp2all("%s", text);
 }
 
 qbool isCanStart(gedict_t *s, qbool forceMembersWarn)
@@ -1758,7 +1862,7 @@ void TimerStartThink()
 	}
 	else if (self->cnt2 <= 0)
 	{
-		G_cp2all("");
+		G_cp2all("%s", "");
 
 		StartMatch();
 
@@ -1872,7 +1976,7 @@ char* CompilateDemoName()
 	demoname[0] = 0;
 	if (isRA())
 	{
-		strlcat(demoname, va("ra_%d", (int) CountPlayers()), sizeof(demoname));
+		strlcat(demoname, va("ra_%d", (int)CountPlayers()), sizeof(demoname));
 	}
 	else if (isRACE() && !race_match_mode())
 	{
@@ -1976,7 +2080,7 @@ char* CompilateDemoName()
 			strlcat(demoname, "race_", sizeof(demoname));
 		}
 
-		strlcat(demoname, va("ffa_%d", (int) CountPlayers()), sizeof(demoname));
+		strlcat(demoname, va("ffa_%d", (int)CountPlayers()), sizeof(demoname));
 	}
 	else
 	{
@@ -1985,17 +2089,17 @@ char* CompilateDemoName()
 			strlcat(demoname, "race_", sizeof(demoname));
 		}
 
-		strlcat(demoname, va("unknown_%d", (int) CountPlayers()), sizeof(demoname));
+		strlcat(demoname, va("unknown_%d", (int)CountPlayers()), sizeof(demoname));
 	}
 
 	if (isRACE())
 	{
-		strlcat(demoname, va("[%s_r%02d]", g_globalvars.mapname, race.active_route),
+		strlcat(demoname, va("[%s_r%02d]", mapname, race.active_route),
 				sizeof(demoname));
 	}
 	else
 	{
-		strlcat(demoname, va("[%s]", g_globalvars.mapname), sizeof(demoname));
+		strlcat(demoname, va("[%s]", mapname), sizeof(demoname));
 	}
 
 	fmt = cvar_string("k_demoname_date");
@@ -2104,7 +2208,7 @@ void StartTimer()
 	timer->classname = "timer";
 	timer->cnt = 0;
 
-	timer->cnt2 = max(3, (int) cvar("k_count"));  // at the least we want a 3 second countdown
+	timer->cnt2 = max(3, (int)cvar("k_count"));  // at the least we want a 3 second countdown
 
 	if (isHoonyModeDuel() && (HM_current_point() > 0))
 	{
@@ -2114,7 +2218,7 @@ void StartTimer()
 	if (k_bloodfest)
 	{
 		// at the least 5 second countdown in bloodfest mode.
-		timer->cnt2 = max(5, (int) cvar("k_count"));
+		timer->cnt2 = max(5, (int)cvar("k_count"));
 	}
 	else if (!deathmatch)
 	{
@@ -2183,7 +2287,7 @@ void StopTimer(int removeDemo)
 	gedict_t *timer, *p;
 
 	if (match_in_progress == 1)
-		G_cp2all(""); // clear center print
+		G_cp2all("%s", ""); // clear center print
 
 	k_force = 0;
 	match_in_progress = 0;
@@ -2410,7 +2514,7 @@ void CheckAutoXonX(qbool use_time);
 void r_changestatus(float t);
 
 // Called by a player to inform that (s)he is ready for a match.
-void PlayerReady()
+void PlayerReady(qbool startIdlebot)
 {
 	gedict_t *p;
 	float nready;
@@ -2570,7 +2674,10 @@ void PlayerReady()
 		if (nready != k_attendees)
 		{
 			// not all players ready, check idlebot and return
-			IdlebotCheck();
+			if (startIdlebot)
+			{
+				IdlebotCheck();
+			}
 
 			return;
 		}
@@ -2598,6 +2705,11 @@ void PlayerReady()
 	}
 
 	StartTimer();
+}
+
+void PlayerSlowReady()
+{
+	PlayerReady(false);
 }
 
 void PlayerBreak()

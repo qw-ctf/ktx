@@ -2,7 +2,6 @@
 
 // Converted from .qc on 05/02/2016
 #include "g_local.h"
-#include "fb_globals.h"
 
 float predict_dist = 0;
 gedict_t *test_enemy = 0;
@@ -236,7 +235,7 @@ qbool enemy_shaft_attack(gedict_t *self, gedict_t *enemy)
 
 qbool bots_enabled(void)
 {
-	return cvar(FB_CVAR_ENABLED) == 1;
+	return (cvar(FB_CVAR_ENABLED) == 1);
 }
 
 static qbool HasRLOrLG(gedict_t *self)

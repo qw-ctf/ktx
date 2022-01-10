@@ -9,7 +9,6 @@
 #ifdef BOT_SUPPORT
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 // Checks if self > point is not blocked
 static qbool PointVisible(vec3_t vec)
@@ -29,14 +28,16 @@ static qbool PointVisible(vec3_t vec)
 gedict_t* IdentifyMostVisibleTeammate(gedict_t *me)
 {
 	gedict_t *p, *g = NULL;
-	unsigned long clientFlag = ClientFlag(me);
 	float closeness = -1;
 	vec3_t diff, point;
 	float currclose;
+	byte visible[MAX_CLIENTS];
 
-	for (p = world; (p = find_plr(p));)
+	visible_to(me, g_edicts + 1, MAX_CLIENTS, visible);
+
+	for (p = g_edicts + 1; p <= g_edicts + MAX_CLIENTS; p++)
 	{
-		if ((me != p) && (p->visclients & clientFlag) && SameTeam(me, p))
+		if ((me != p) && p->ct == ctPlayer && visible[p - (g_edicts + 1)] && SameTeam(me, p))
 		{
 			// Find difference in angles between aim & aiming at teammate
 			VectorSubtract(p->s.v.origin, me->s.v.origin, diff);
@@ -63,7 +64,7 @@ gedict_t* IdentifyMostVisibleTeammate(gedict_t *me)
 		}
 	}
 
-	return g ? g : world;
+	return (g ? g : world);
 }
 
 qbool VisibleEntity(gedict_t *ent)
@@ -123,10 +124,10 @@ gedict_t* HelpTeammate()
 	{
 		if (SameTeam(goalent, self))
 		{
-			if ((goalent->s.v.health < 30) && !((int) goalent->s.v.items & IT_INVULNERABILITY)
+			if ((goalent->s.v.health < 30) && !((int)goalent->s.v.items & IT_INVULNERABILITY)
 					&& (goalent->s.v.waterlevel == 0))
 			{
-				if (((int) self->s.v.items & (IT_ROCKET_LAUNCHER | IT_LIGHTNING))
+				if (((int)self->s.v.items & (IT_ROCKET_LAUNCHER | IT_LIGHTNING))
 						&& (self->s.v.health > 65))
 				{
 					if ((self->s.v.ammo_rockets > 2) || (self->s.v.ammo_cells > 10))
@@ -152,8 +153,8 @@ gedict_t* HelpTeammate()
 	self->fb.help_teammate_time = g_globalvars.time + 20 + 3 * g_random();
 	selected1 = NULL;
 	selected2 = NULL;
-	best_dist1 = 99999999;
-	best_dist2 = 99999999;
+	best_dist1 = 10e+32;
+	best_dist2 = 10e+32;
 	for (head = world; (head = trap_findradius(head, self->s.v.origin, bdist));)
 	{
 		if (head->ct == ctPlayer)
@@ -167,11 +168,11 @@ gedict_t* HelpTeammate()
 					{
 						if (d < best_dist1)
 						{
-							if (VisibleEntity(head) && !((int) head->s.v.items & IT_INVULNERABILITY)
+							if (VisibleEntity(head) && !((int)head->s.v.items & IT_INVULNERABILITY)
 									&& (head->s.v.health < 40) && (head->s.v.armorvalue < 11)
 									&& (head->s.v.waterlevel == 0))
 							{
-								if ((int) self->s.v.items & (IT_ROCKET_LAUNCHER | IT_LIGHTNING))
+								if ((int)self->s.v.items & (IT_ROCKET_LAUNCHER | IT_LIGHTNING))
 								{
 									if ((self->s.v.ammo_cells > 10) || (self->s.v.ammo_rockets > 2))
 									{
@@ -191,11 +192,11 @@ gedict_t* HelpTeammate()
 							if (d < best_dist2)
 							{
 								if (VisibleEntity(head)
-										&& !((int) head->s.v.items & IT_INVULNERABILITY)
+										&& !((int)head->s.v.items & IT_INVULNERABILITY)
 										&& (head->s.v.health < 30) && (head->s.v.armorvalue < 20)
 										&& (head->s.v.waterlevel == 0))
 								{
-									if ((int) self->s.v.items & (IT_ROCKET_LAUNCHER | IT_LIGHTNING))
+									if ((int)self->s.v.items & (IT_ROCKET_LAUNCHER | IT_LIGHTNING))
 									{
 										if ((self->s.v.ammo_cells > 10)
 												|| (self->s.v.ammo_rockets > 2))

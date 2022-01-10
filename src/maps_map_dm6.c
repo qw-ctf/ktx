@@ -3,7 +3,6 @@
 #ifdef BOT_SUPPORT
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 gedict_t *dm6_door = 0;
 
@@ -14,7 +13,7 @@ extern gedict_t *markers[];
 
 void DM6CampLogic()
 {
-	qbool has_weapon = (int) self->s.v.items & (IT_ROCKET_LAUNCHER | IT_LIGHTNING);
+	qbool has_weapon = (int)self->s.v.items & (IT_ROCKET_LAUNCHER | IT_LIGHTNING);
 
 	// Camp the red armor...
 	if (NumberOfClients() > 1)
@@ -55,7 +54,7 @@ void DM6SelectWeaponToOpenDoor(gedict_t *self)
 {
 	if (dm6_door && (self->fb.path_state & DM6_DOOR))
 	{
-		int items_ = (int) self->s.v.items;
+		int items_ = (int)self->s.v.items;
 		int desired_weapon = 0;
 
 		if (self->s.v.ammo_shells)
@@ -116,8 +115,8 @@ qbool DM6DoorClosed(fb_path_eval_t *eval)
 		return false;
 	}
 
-	return (eval->test_marker == dm6_door && !dm6_door->fb.door_entity->s.v.takedamage)
-			|| ((eval->description & DM6_DOOR) && dm6_door->fb.door_entity->s.v.origin[0] > -64);
+	return ((eval->test_marker == dm6_door) && !dm6_door->fb.door_entity->s.v.takedamage)
+			|| ((eval->description & DM6_DOOR) && (dm6_door->fb.door_entity->s.v.origin[0] > -64));
 }
 
 void DM6MarkerTouchLogic(gedict_t *self, gedict_t *goalentity_marker)

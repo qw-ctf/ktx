@@ -458,38 +458,34 @@ int vote_get_maps()
 
 void vote_check_map()
 {
-	int vt_req = get_votes_req( OV_MAP, true);
-	char *m = "";
+	int vt_req;
+	char *map;
 
-	if ((maps_voted_idx < 0) || strnull(m = GetMapName(maps_voted[maps_voted_idx].map_id)))
+	vt_req = get_votes_req(OV_MAP, true);
+	if (maps_voted_idx < 0)
 	{
 		return;
 	}
 
-	if (!k_matchLess)
-	{
-		if (match_in_progress)
-		{
-			return;
-		}
-	}
-
-	if (maps_voted[maps_voted_idx].admins)
-	{
-		G_bprint(2, "%s\n", redtext("Admin veto"));
-	}
-	else if (!vt_req)
-	{
-		G_bprint(2, "%s votes for mapchange.\n", redtext("Majority"));
-	}
-	else
+	map = GetMapName(maps_voted[maps_voted_idx].map_id);
+	if (strnull(map))
 	{
 		return;
 	}
 
-	vote_clear( OV_MAP);
+	if (!k_matchLess && match_in_progress)
+	{
+		return;
+	}
 
-	changelevel(m);
+	if (vt_req)
+	{
+		return;
+	}
+
+	G_bprint(2, "%s votes for mapchange.\n", redtext("Majority"));
+	vote_clear(OV_MAP);
+	changelevel(map);
 }
 
 void vote_check_break()
@@ -976,19 +972,19 @@ void vote_check_coop()
 		}
 
 		// and reload map
-		if (coop && can_exec(va("configs/usermodes/matchless/%s.cfg", g_globalvars.mapname)))
+		if (coop && can_exec(va("configs/usermodes/matchless/%s.cfg", mapname)))
 		{
 			// Force the config to be executed
 			force_map_reset = true;
-			changelevel(g_globalvars.mapname);
+			changelevel(mapname);
 		}
 		else if (cvar("k_bloodfest"))
 		{
-			changelevel(coop ? g_globalvars.mapname : cvar_string("k_defmap"));
+			changelevel(coop ? mapname : cvar_string("k_defmap"));
 		}
 		else
 		{
-			changelevel(coop ? "start" : g_globalvars.mapname);
+			changelevel(coop ? "start" : mapname);
 		}
 
 		return;
@@ -1323,8 +1319,7 @@ void private_game_toggle(qbool enable)
 			if (!p->isBot && p->ready && !is_logged_in(p))
 			{
 				p->ready = 0;
-				G_bprint(PRINT_HIGH, "%s is no longer ready\n", p->netname,
-							redtext("is no longer ready"));
+				G_bprint(PRINT_HIGH, "%s is no longer ready\n", p->netname);
 			}
 
 			if (force_reconnect && !is_logged_in(p))
@@ -1367,7 +1362,7 @@ qbool private_game_by_default(void)
 
 // }
 
-void vote_check_all()
+void vote_check_all(void)
 {
 	vote_check_map();
 	vote_check_break();
@@ -1378,4 +1373,5 @@ void vote_check_all()
 	vote_check_teamoverlay();
 	vote_check_coop();
 	vote_check_antilag();
+	vote_check_privategame();
 }

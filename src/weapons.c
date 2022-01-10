@@ -390,7 +390,7 @@ void TraceAttack(float damage, vec3_t dir, qbool send_effects)
 				WS_Mark(self, wpSG);
 				self->ps.wpn[wpSG].hits++;
 			}
-			else if ((int) self->s.v.weapon == IT_SUPER_SHOTGUN)
+			else if ((int)self->s.v.weapon == IT_SUPER_SHOTGUN)
 			{
 				WS_Mark(self, wpSSG);
 				self->ps.wpn[wpSSG].hits++;
@@ -551,6 +551,8 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 	vec3_t direction;
 	vec3_t src, tmp, tmp2;
 	qbool classic_shotgun = cvar("k_classic_shotgun");
+	qbool non_random_bullets = (k_yawnmode
+			|| (!match_in_progress && self && (self->ct == ctPlayer) && iKey(self, "nrb")));
 
 	trap_makevectors(self->s.v.v_angle);
 	VectorScale(g_globalvars.v_forward, 10, tmp);
@@ -577,7 +579,7 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 
 	while (shotcount > 0)
 	{
-		if (k_yawnmode)
+		if (non_random_bullets)
 		{
 			if (shotcount == 1)
 			{
@@ -848,6 +850,7 @@ void W_FireShotgun()
 	}
 }
 #endif
+
 /*
  ================
  W_FireSuperShotgun
@@ -2153,7 +2156,7 @@ float W_BestWeapon()
 
 	 */
 
-	return (it & IT_AXE ? IT_AXE : 0);
+	return ((it & IT_AXE) ? IT_AXE : 0);
 }
 
 int W_CheckNoAmmo()
@@ -2714,7 +2717,7 @@ qbool CycleWeaponReverseCommand()
 	for (i = 0; i < 20; i++) // qqshka, 20 is just from head, but prevent infinite loop
 	{
 		am = 0;
-		switch ((int) self->s.v.weapon)
+		switch ((int)self->s.v.weapon)
 		{
 			case IT_LIGHTNING:
 				self->s.v.weapon = IT_ROCKET_LAUNCHER;

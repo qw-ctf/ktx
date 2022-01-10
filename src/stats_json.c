@@ -36,7 +36,7 @@ static void json_player_lgc_stats(fileHandle_t handle, gedict_t *player);
 
 #define SIMPLE_CHECK(handle, any, string) {\
 	if (any) { \
-		s2di(handle, string); \
+		s2di(handle, "%s", string); \
 	} \
 	any = true; \
 }
@@ -220,7 +220,7 @@ static void json_weap_footer(fileHandle_t handle, int num)
 {
 	if (num)
 	{
-		s2di(handle, JSON_CR);
+		s2di(handle, "%s", JSON_CR);
 	}
 
 	s2di(handle, INDENT6 "}," JSON_CR);
@@ -286,7 +286,7 @@ static void json_item_detail(fileHandle_t handle, const char *name, int item_num
 	if ((int)stats->time)
 	{
 		COMMA_CHECK(handle, any);
-		s2di(handle, "\"time\": %d", (int) stats->time);
+		s2di(handle, "\"time\": %d", (int)stats->time);
 	}
 
 	s2di(handle, " }");
@@ -296,7 +296,7 @@ static void json_items_footer(fileHandle_t handle, int item_num)
 {
 	if (item_num)
 	{
-		s2di(handle, "" JSON_CR);
+		s2di(handle, "%s", JSON_CR);
 	}
 
 	s2di(handle, INDENT6 "}");
@@ -311,7 +311,7 @@ void json_players_footer(fileHandle_t handle, int player_count)
 {
 	if (player_count)
 	{
-		s2di(handle, JSON_CR);
+		s2di(handle, "%s", JSON_CR);
 	}
 
 	s2di(handle, INDENT2 "]" JSON_CR);
@@ -343,18 +343,18 @@ void json_player_detail(fileHandle_t handle, int player_num, gedict_t *player, c
 	s2di(handle, INDENT6 "\"top-color\": %d," JSON_CR, iKey(player, "topcolor"));
 	s2di(handle, INDENT6 "\"bottom-color\": %d," JSON_CR, iKey(player, "bottomcolor"));
 	s2di(handle, INDENT6 "\"ping\": %d," JSON_CR, iKey(player, "ping"));
-	s2di(handle, INDENT6 "\"login\": %d," JSON_CR, ezinfokey(player, "login"));
+	s2di(handle, INDENT6 "\"login\": \"%s\"," JSON_CR, ezinfokey(player, "login"));
 	s2di(handle, INDENT6 "\"name\": \"%s\"," JSON_CR, json_string(getname(player)));
 	s2di(handle, INDENT6 "\"team\": \"%s\"," JSON_CR, json_string(team));
 	s2di(handle,
 			INDENT6 "\"stats\": { \"frags\": %d, \"deaths\": %d, \"tk\": %d, \"spawn-frags\": %d, \"kills\": %d, \"suicides\": %d }," JSON_CR,
-			(int)player->s.v.frags, (int) player->deaths, (int) player->friendly,
-			player->ps.spawn_frags, (int) player->kills, (int) player->suicides);
+			(int)player->s.v.frags, (int)player->deaths, (int)player->friendly,
+			player->ps.spawn_frags, (int)player->kills, (int)player->suicides);
 	s2di(handle,
 			INDENT6 "\"dmg\": { \"taken\": %d, \"given\": %d, \"team\": %d, \"self\": %d, \"team-weapons\": %d, \"enemy-weapons\": %d, \"taken-to-die\": %d }," JSON_CR,
-			(int)player->ps.dmg_t, (int) player->ps.dmg_g, (int) player->ps.dmg_team,
-			(int)player->ps.dmg_self, (int) player->ps.dmg_tweapon, (int) player->ps.dmg_eweapon,
-			(int)player->deaths == 0 ? 99999 : (int) player->ps.dmg_t / (int) player->deaths);
+			(int)player->ps.dmg_t, (int)player->ps.dmg_g, (int)player->ps.dmg_team,
+			(int)player->ps.dmg_self, (int)player->ps.dmg_tweapon, (int)player->ps.dmg_eweapon,
+			(int)player->deaths == 0 ? 99999 : (int)player->ps.dmg_t / (int)player->deaths);
 	s2di(handle, INDENT6 "\"xfer\": %d," JSON_CR, player->ps.transferred_packs);
 	s2di(handle, INDENT6 "\"spree\": { \"max\": %d, \"quad\": %d }," JSON_CR, player->ps.spree_max,
 			player->ps.spree_max_q);
@@ -442,7 +442,7 @@ void json_player_detail(fileHandle_t handle, int player_num, gedict_t *player, c
 	}
 #endif
 
-	s2di(handle, JSON_CR);
+	s2di(handle, "%s", JSON_CR);
 	s2di(handle, INDENT4 "}");
 }
 
@@ -465,7 +465,7 @@ void json_match_header(fileHandle_t handle, char *ip, int port)
 	s2di(handle, "{" JSON_CR);
 	s2di(handle, INDENT2 "\"version\": %d," JSON_CR, STATS_VERSION_NUMBER);
 	s2di(handle, INDENT2 "\"date\": \"%s\"," JSON_CR, date);
-	s2di(handle, INDENT2 "\"map\": \"%s\"," JSON_CR, json_string(g_globalvars.mapname));
+	s2di(handle, INDENT2 "\"map\": \"%s\"," JSON_CR, json_string(mapname));
 	s2di(handle, INDENT2 "\"hostname\": \"%s\"," JSON_CR,
 			json_string(striphigh(cvar_string("hostname"))));
 	s2di(handle, INDENT2 "\"ip\": \"%s\"," JSON_CR, json_string(ip));

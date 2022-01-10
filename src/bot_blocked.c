@@ -1,7 +1,6 @@
 #ifdef BOT_SUPPORT
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 /*
  Okay, some explanation required here.
@@ -34,7 +33,7 @@ void BotBlocked(void)
 	vec3_t blocked_velocity;
 	vec3_t blocked_position;
 	vec3_t velocity_normal;
-	int blocked_flags = (int) g_globalvars.trace_allsolid;
+	int blocked_flags = (int)g_globalvars.trace_allsolid;
 
 	VectorCopy(g_globalvars.trace_endpos, blocked_position);
 	VectorCopy(g_globalvars.trace_plane_normal, blocked_velocity);

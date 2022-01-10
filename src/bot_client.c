@@ -12,34 +12,38 @@
 #ifdef BOT_SUPPORT
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 #define PERIODIC_MM2_STATUS 4
 
-void PlayerReady();
+void PlayerReady(qbool startIdlebot);
 void BotBlocked(void);
 
 int weapon_impulse_codes[] =
 	{ 0, IT_AXE, IT_SHOTGUN, IT_SUPER_SHOTGUN, IT_NAILGUN, IT_SUPER_NAILGUN, IT_GRENADE_LAUNCHER,
 			IT_ROCKET_LAUNCHER, IT_LIGHTNING };
 
-void TeamplayReportVisiblePowerups(gedict_t *player)
+void TeamplayReportVisiblePowerups(gedict_t *self)
 {
-	unsigned int clientFlag = ClientFlag(player);
+	byte visible[MAX_CLIENTS];
 	gedict_t *opponent;
 
-	// Assumes that visclients match
-	for (opponent = world; (opponent = find_plr(opponent));)
-	{
-		qbool diff_team = opponent->k_teamnum != player->k_teamnum;
-		qbool powerups = (int) opponent->s.v.items & (IT_QUAD | IT_INVULNERABILITY);
-		qbool visible = (opponent->visclients & clientFlag);
+	if (FUTURE(last_mm2_spot_attempt))
+		return;
+	self->fb.last_mm2_spot_attempt = g_globalvars.time + 0.5 + g_random() * 0.2; // Don't burn CPU with frequent visible_to() calls.
 
-		if (diff_team && powerups && visible && (opponent->fb.last_mm2_spot < g_globalvars.time))
+	visible_to(self, g_edicts + 1, MAX_CLIENTS, visible);
+
+	for (opponent = g_edicts + 1; opponent <= g_edicts + MAX_CLIENTS; opponent++)
+	{
+		qbool diff_team = opponent->k_teamnum != self->k_teamnum;
+		qbool powerups = (int)opponent->s.v.items & (IT_QUAD | IT_INVULNERABILITY);
+
+		if (diff_team && powerups && opponent->ct == ctPlayer
+			&& visible[opponent - (g_edicts + 1)] && (opponent->fb.last_mm2_spot < g_globalvars.time))
 		{
 			if (VisibleEntity(opponent))
 			{
-				TeamplayMessageByName(player, "enemypwr");
+				TeamplayMessageByName(self, "enemypwr");
 				opponent->fb.last_mm2_spot = g_globalvars.time + 2;
 				break;
 			}
@@ -202,21 +206,21 @@ static float goal_client(gedict_t *self, gedict_t *other)
 
 	if (self->fb.look_object && (self->s.v.enemy == NUM_FOR_EDICT(self->fb.look_object)))
 	{
-		return ((self->fb.total_damage + 100) * self->fb.firepower
+		return (((self->fb.total_damage + 100) * self->fb.firepower
 				- self->fb.virtual_enemy->fb.total_damage * self->fb.virtual_enemy->fb.firepower)
-				* 0.01;
+				* 0.01);
 	}
 	else if (EnemyDefenceless(self))
 	{
-		return ((self->fb.total_damage + 120) * self->fb.firepower
+		return (((self->fb.total_damage + 120) * self->fb.firepower
 				- self->fb.virtual_enemy->fb.total_damage * self->fb.virtual_enemy->fb.firepower)
-				* 0.01;
+				* 0.01);
 	}
 	else
 	{
-		return (self->fb.total_damage * self->fb.firepower
+		return ((self->fb.total_damage * self->fb.firepower
 				- self->fb.virtual_enemy->fb.total_damage * self->fb.virtual_enemy->fb.firepower)
-				* 0.01;
+				* 0.01);
 	}
 }
 
@@ -250,7 +254,7 @@ void BotClientConnectedEvent(gedict_t *self)
 
 	if (self->isBot)
 	{
-		PlayerReady();
+		PlayerReady(true);
 	}
 
 	// Assign all flags again
@@ -265,6 +269,8 @@ void BotOutOfWater(gedict_t *self)
 {
 	return;
 
+// qqshka: meag turned it off for some reason. I commented it out completely so compiler does not emit warnings.
+#if 0
 	if (self->s.v.waterlevel == 2)
 	{
 		vec3_t start;
@@ -304,14 +310,15 @@ void BotOutOfWater(gedict_t *self)
 			}
 		}
 	}
+#endif
 }
 
 static void BotPeriodicMessages(gedict_t *self)
 {
 	if (PAST(last_mm2_status))
 	{
-		qbool has_rl = ((int) self->s.v.items & IT_ROCKET_LAUNCHER) && self->s.v.ammo_rockets >= 3;
-		qbool has_lg = ((int) self->s.v.items & IT_LIGHTNING) && self->s.v.ammo_cells >= 6;
+		qbool has_rl = ((int)self->s.v.items & IT_ROCKET_LAUNCHER) && self->s.v.ammo_rockets >= 3;
+		qbool has_lg = ((int)self->s.v.items & IT_LIGHTNING) && self->s.v.ammo_cells >= 6;
 		qbool is_strong = (has_rl || has_lg) && self->fb.total_damage >= 120;
 
 		if (is_strong && (self->tp.enemy_count == 0))
@@ -348,7 +355,7 @@ void BotPreThink(gedict_t *self)
 
 		if (self->isBot && (match_in_progress == 0) && !self->ready)
 		{
-			PlayerReady();
+			PlayerReady(true);
 		}
 
 		if (teamplay && (match_in_progress == 2))

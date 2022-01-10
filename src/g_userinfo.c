@@ -22,6 +22,7 @@
 extern qbool isSupport_Params(gedict_t *p);
 
 extern void info_sys_mm_update(gedict_t *p, char *from, char *to);
+void info_wpsx_update(gedict_t* p, char* from, char* to);
 
 //========================================================
 //
@@ -52,6 +53,7 @@ cmdinfo_t cinfos[] =
 
 //    { "e-mail", 0 },
 	{ "ev", info_ev_update },
+	{ "wpsx", info_wpsx_update },
 
 //    { "fs", 0 }, // for force_spec 
 
@@ -245,7 +247,7 @@ void cmdinfo_infoset(gedict_t *p)
 qbool FixPlayerTeam(char *newteam);
 qbool FixPlayerColor(char *newcolor);
 
-qbool ClientUserInfoChanged()
+qbool ClientUserInfoChanged(int after)
 {
 	char arg_0[1024], arg_1[1024], arg_2[1024], *old;
 	int i;
@@ -261,6 +263,10 @@ qbool ClientUserInfoChanged()
 
 //	G_bprint(2, "'%s' '%s' '%s'\n", arg_0, arg_1, arg_2 );
 
+	if (after && !strcmp(arg_1, "name")) {
+		trap_CmdArgv(2, self->netname, CLIENT_NAME_LEN);
+		return false;
+	}
 	if (streq("team", arg_1))
 	{
 		return FixPlayerTeam(arg_2);

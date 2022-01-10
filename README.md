@@ -57,7 +57,7 @@ Install required packages:
 ```bash
 $ sudo apt-get update
 $ sudo apt-get -y upgrade
-$ sudo apt-get -y install build-essential python-virtualenv python3-dev python3-pip ninja-build cmake gcc-multilib
+$ sudo apt-get -y install build-essential python3-virtualenv python3-dev python3-pip ninja-build cmake gcc-multilib
 ```
 
 Check out the code to the current directory:
@@ -84,27 +84,29 @@ $ rm -rf build
 
 $ meson build --cross-file tools/cross-compilation/${TARGET}.txt
 The Meson build system
-Version: 0.41.2
-Source dir: /ktx/src
-Build dir: /ktx/src/build
+Version: 0.58.0
+Source dir: /home/taps/workspace/ktx
+Build dir: /home/taps/workspace/ktx/build
 Build type: cross build
 Project name: ktx
-Native c compiler: cc (gcc 5.4.0)
-Cross c compiler: gcc (gcc 5.4.0)
+Project version: undefined
+C compiler for the host machine: gcc (gcc 9.3.0 "gcc (Ubuntu 9.3.0-17ubuntu1~20.04) 9.3.0")
+C linker for the host machine: gcc ld.bfd 2.34
+C compiler for the build machine: cc (gcc 9.3.0 "cc (Ubuntu 9.3.0-17ubuntu1~20.04) 9.3.0")
+C linker for the build machine: cc ld.bfd 2.34
+Build machine cpu family: x86_64
+Build machine cpu: x86_64
 Host machine cpu family: x86_64
 Host machine cpu: x86_64
 Target machine cpu family: x86_64
 Target machine cpu: x86_64
-Build machine cpu family: x86_64
-Build machine cpu: x86_64
-Dependency threads found: YES
 Library m found: YES
 Build targets in project: 1
 
 $ ninja -C build
 
 ninja: Entering directory `build'
-[46/46] Linking target qwprogs.so.
+[100/100] Linking target qwprogs.so.
 
 ```
 
@@ -121,6 +123,51 @@ In ``build/`` there will be ``qwprogs.so`` binary, copy it to your quake server.
 Known issues:
 
 - When changing architecture builds, for example for arm, apt-get will install/remove conflicting packages. Don't be surprised that you compile ``linux-amd64``, then ``linux-armv7hl`` and then back ``linux-amd64`` and it does not work because files are missing :)
+
+### Build from source with CMake
+
+Assuming you have installed essential build tools and ``CMake``
+```bash
+mkdir build && cmake -B build . && cmake --build build
+```
+Build artifacts would be inside ``build/`` directory, for unix like systems it would be ``qwprogs.so``.
+
+You can also use ``build_cmake.sh`` script, it mostly suitable for cross compilation
+and probably useless for experienced CMake user.
+Some examples:
+```
+./build_cmake.sh linux-amd64
+```
+should build KTX for ``linux-amd64`` platform, release version, check [cross-cmake](tools/cross-cmake) directory for all platforms
+
+```
+B=Debug ./build_cmake.sh linux-amd64
+```
+should build KTX for linux-amd64 platform with debug
+
+```
+V=1 B=Debug ./build_cmake.sh linux-amd64
+```
+should build KTX for linux-amd64 platform with debug, verbose (useful if you need validate compiler flags)
+
+```
+V=1 B=Debug BOT_SUPPORT=OFF ./build_cmake.sh linux-amd64
+```
+
+same as above but compile without bot support
+
+```
+G="Unix Makefiles" ./build_cmake.sh linux-amd64
+```
+
+force CMake generator to be unix makefiles
+
+```
+./build_cmake.sh linux-amd64 qvm
+```
+
+build KTX for ``linux-amd64`` and ``QVM`` version, you can provide
+any platform combinations.
 
 ## Versioning
 

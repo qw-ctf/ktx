@@ -2,7 +2,7 @@
 #include "g_local.h"
 
 void AdminMatchStart();
-void PlayerReady();
+void PlayerReady(qbool startIdlebot);
 void NextClient();
 qbool DoKick(gedict_t *victim, gedict_t *kicker);
 
@@ -95,10 +95,7 @@ qbool DoKick(gedict_t *victim, gedict_t *kicker)
 
 		stuffcmd(kicker, "disconnect\n");  // FIXME: stupid way
 
-		if (!FTE_sv)
-		{
-			localcmd("addip %s ban +30\n", cl_ip(victim)); // BAN for 30 seconds
-		}
+		localcmd("addip %s ban +30\n", cl_ip(victim)); // BAN for 30 seconds
 	}
 	else
 	{
@@ -113,10 +110,7 @@ qbool DoKick(gedict_t *victim, gedict_t *kicker)
 
 		stuffcmd(victim, "disconnect\n"); // FIXME: stupid way
 
-		if (!FTE_sv)
-		{
-			localcmd("addip %s ban +30\n", cl_ip(victim)); // BAN for 30 seconds
-		}
+		localcmd("addip %s ban +30\n", cl_ip(victim)); // BAN for 30 seconds
 	}
 
 	return true;
@@ -308,6 +302,9 @@ void BecomeAdmin(gedict_t *p, int adm_flags)
 
 	p->k_admin |= adm_flags;
 
+	// Any previous votes should be invalidated
+	memset(&p->v, 0, sizeof(p->v));
+
 	on_admin(p);
 }
 
@@ -445,7 +442,7 @@ void AdminImpBot()
 	}
 	else
 	{
-		G_sprint(self, 2, "%d %s\n", (int) self->k_adminc, redtext("more to go"));
+		G_sprint(self, 2, "%d %s\n", (int)self->k_adminc, redtext("more to go"));
 	}
 }
 
@@ -661,7 +658,7 @@ void AdminForceStart()
 
 	if ((self->ct == ctPlayer) && !self->ready)
 	{
-		PlayerReady();
+		PlayerReady(true);
 
 		if (!self->ready)
 		{
@@ -740,6 +737,41 @@ void AdminForceBreak()
 	G_bprint(2, "%s forces a break!\n", self->netname);
 
 	EndMatch(0);
+}
+
+void AdminForceMap()
+{
+	char map[128];
+
+	if (!is_adm(self))
+	{
+		return;
+	}
+
+	if (!k_matchLess && match_in_progress)
+	{
+		G_sprint(self, 2, "Match currently in progress. Use %s or %s to terminate.\n", redtext("break"), redtext("forcebreak"));
+
+		return;
+	}
+
+	if (trap_CmdArgc() < 2)
+	{
+		G_sprint(self, 2, "Usage: forcemap %s\n", redtext("<mapname>"));
+
+		return;
+	}
+
+	trap_CmdArgv(1, map, sizeof(map));
+	if (GetMapNum(map) <= 0)
+	{
+		G_sprint(self, 2, "Map %s not available on this server.\n", redtext(map));
+
+		return;
+	}
+
+	G_bprint(2, "%s forces a map change to %s!\n", self->netname, redtext(map));
+	changelevel(map);
 }
 
 void PlayerStopFire(gedict_t *p)

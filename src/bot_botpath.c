@@ -11,7 +11,6 @@
 #ifdef BOT_SUPPORT
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 void DM3CampLogic();
 void DM4CampLogic();
@@ -21,7 +20,7 @@ qbool DM6LookAtDoor(gedict_t *self);
 
 static qbool HasItem(gedict_t *player, int mask)
 {
-	return ((int) player->s.v.items & mask);
+	return ((int)player->s.v.items & mask);
 }
 
 // FIXME: Globals
@@ -176,12 +175,12 @@ static qbool OnLift(gedict_t *self)
 
 static qbool LookingAtPlayer(gedict_t *self)
 {
-	return self->fb.look_object && self->fb.look_object->ct == ctPlayer;
+	return (self->fb.look_object && (self->fb.look_object->ct == ctPlayer));
 }
 
 qbool WaitingToHitGround(gedict_t *self)
 {
-	return (self->fb.path_state & WAIT_GROUND) && !((int) self->s.v.flags & FL_ONGROUND);
+	return (self->fb.path_state & WAIT_GROUND) && !((int)self->s.v.flags & FL_ONGROUND);
 }
 
 static qbool WalkTowardsDroppedItem(gedict_t *self)
@@ -438,15 +437,15 @@ void ProcessNewLinkedMarker(gedict_t *self)
 	// FIXME: Map specific waiting points
 	if (!self->fb.debug_path)
 	{
-		if (streq(g_globalvars.mapname, "dm3"))
+		if (streq(mapname, "dm3"))
 		{
 			DM3CampLogic();
 		}
-		else if (streq(g_globalvars.mapname, "dm4"))
+		else if (streq(mapname, "dm4"))
 		{
 			DM4CampLogic();
 		}
-		else if (streq(g_globalvars.mapname, "dm6"))
+		else if (streq(mapname, "dm6"))
 		{
 			DM6CampLogic();
 		}
@@ -465,7 +464,7 @@ void ProcessNewLinkedMarker(gedict_t *self)
 	DM6MarkerTouchLogic(self, goalentity_marker);
 
 	self->fb.state &= ~NOTARGET_ENEMY;
-	if (((int) self->s.v.flags & FL_ONGROUND) && self->fb.wasinwater)
+	if (((int)self->s.v.flags & FL_ONGROUND) && self->fb.wasinwater)
 	{
 		self->fb.wasinwater = false;
 		self->fb.path_state &= ~WATERJUMP_;

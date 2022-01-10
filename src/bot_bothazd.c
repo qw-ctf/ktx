@@ -10,7 +10,6 @@
 #ifdef BOT_SUPPORT
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 // A lot of this is the bot 'cheating'?..
 #define ARROW_TIME_AFTER_TELEPORT 0.20  // was 0.5
@@ -28,7 +27,7 @@ static const char* FallType(int fallType)
 	const char *fallNames[] =
 		{ "FALSE", "BLOCKED", "LAND", "DEATH", "???" };
 
-	return fallNames[(int) bound(0, fallType, sizeof(fallNames) / sizeof(fallNames[0]))];
+	return fallNames[(int)bound(0, fallType, sizeof(fallNames) / sizeof(fallNames[0]))];
 }
 
 static float StandardFallHeight(gedict_t *self)
@@ -410,7 +409,7 @@ static qbool CanJumpOver(gedict_t *self, vec3_t jump_origin, vec3_t jump_velocit
 		}
 		else
 		{
-			if ((int) self->s.v.flags & FL_ONGROUND)
+			if ((int)self->s.v.flags & FL_ONGROUND)
 			{
 				gedict_t *ent;
 
@@ -561,7 +560,7 @@ static qbool JumpLedgeLogic(gedict_t *self, vec3_t new_velocity)
 		VectorSubtract(rel_pos, self->s.v.origin, rel_pos);
 		VectorCopy(rel_pos, self->fb.obstruction_direction);
 
-		if ((int) self->s.v.flags & FL_ONGROUND)
+		if ((int)self->s.v.flags & FL_ONGROUND)
 		{
 			if (LedgeJumpLogic(self, rel_pos, new_velocity))
 			{
@@ -611,7 +610,7 @@ static void ObstructionLogic(gedict_t *self, vec3_t new_velocity)
 
 				self->fb.path_state |= STUCK_PATH;
 			}
-			else if ((int) self->fb.path_state & STUCK_PATH)
+			else if ((int)self->fb.path_state & STUCK_PATH)
 			{
 				//
 				vec3_t norm_new_velocity;
@@ -637,9 +636,8 @@ static void ObstructionLogic(gedict_t *self, vec3_t new_velocity)
 
 static void DumpDebugLines(char lines[10][128], int count, const char *explanation)
 {
+#if 0
 	int i;
-
-	return;
 
 	for (i = 0; i < count; ++i)
 	{
@@ -647,6 +645,7 @@ static void DumpDebugLines(char lines[10][128], int count, const char *explanati
 	}
 
 	G_bprint(PRINT_HIGH, "    %s\n", explanation);
+#endif
 }
 
 static void AvoidHazardsOnGround(gedict_t *self, float hor_speed, vec3_t new_origin,
@@ -723,7 +722,7 @@ static void AvoidHazardsOnGround(gedict_t *self, float hor_speed, vec3_t new_ori
 		fall = FallSpotGround(testplace, fallheight);
 		snprintf(debug[line++], sizeof(debug[0]), "> 2: FallSpotGround([%d %d %d], %f) = %s\n",
 					PASSINTVEC3(testplace), fallheight, FallType(fall));
-		if ((int) self->fb.path_state & DELIBERATE_AIR)
+		if ((int)self->fb.path_state & DELIBERATE_AIR)
 		{
 			if (fall < FALL_LAND)
 			{
@@ -810,7 +809,7 @@ static void AvoidHazardsOnGround(gedict_t *self, float hor_speed, vec3_t new_ori
 		fall = FallSpotGround(testplace, fallheight);
 		snprintf(debug[line++], sizeof(debug[0]), "> 4: FallSpotGround([%d %d %d], %f) = %s\n",
 					PASSINTVEC3(testplace), fallheight, FallType(fall));
-		if ((int) self->fb.path_state & DELIBERATE_AIR)
+		if ((int)self->fb.path_state & DELIBERATE_AIR)
 		{
 			if (fall < FALL_LAND)
 			{
@@ -1035,7 +1034,7 @@ void AvoidHazards(gedict_t *self)
 
 	VectorCopy(self->s.v.origin, new_origin);
 
-	if ((int) self->s.v.flags & FL_ONGROUND)
+	if ((int)self->s.v.flags & FL_ONGROUND)
 	{
 		normalize(hor_velocity, dir_forward);
 		AvoidHazardsOnGround(self, hor_speed, new_origin, new_velocity, dir_forward);

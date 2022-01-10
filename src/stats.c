@@ -220,6 +220,11 @@ static void SummaryTPStats(void)
 					redtext("Dropped"), tmStats[i].wpn[wpRL].drops, redtext("Xfer"),
 					tmStats[i].transferred_packs);
 
+		// lg
+		G_bprint(2, "%s: %s:%d %s:%d %s:%d\n", redtext("      LG"), redtext("Took"),
+					tmStats[i].wpn[wpLG].tooks, redtext("Killed"), tmStats[i].wpn[wpLG].ekills,
+					redtext("Dropped"), tmStats[i].wpn[wpLG].drops);
+
 		// damage
 		if (deathmatch == 1)
 		{
@@ -237,7 +242,7 @@ static void SummaryTPStats(void)
 
 		// times
 		G_bprint(2, "%s: %s:%d\n", redtext("    Time"), redtext("Quad"),
-					(int) tmStats[i].itm[itQUAD].time);
+					(int)tmStats[i].itm[itQUAD].time);
 	}
 
 	G_bprint(2, "\235\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236"
@@ -441,7 +446,23 @@ void s2di(fileHandle_t file_handle, const char *fmt, ...)
 	trap_FS_WriteFile(text, strlen(text), file_handle);
 }
 
-static qbool CreateStatsFile(char *filename, char *ip, int port)
+static stats_format_t* FindStatsFormat(const char* requested_format)
+{
+	int i;
+
+	for (i = 0; i < sizeof(file_formats) / sizeof(file_formats[0]); ++i)
+	{
+		if (streq(requested_format, file_formats[i].name))
+		{
+			return &file_formats[i];
+		}
+	}
+
+	// default to xml
+	return &file_formats[0];
+}
+
+static qbool CreateStatsFile(char* filename, char* ip, int port, stats_format_t* format)
 {
 	gedict_t *p, *p2;
 	fileHandle_t di_handle;
@@ -449,26 +470,15 @@ static qbool CreateStatsFile(char *filename, char *ip, int port)
 	char *team = "";
 	int player_num = 0;
 	int i = 0;
-	stats_format_t *format = NULL;
-	const char *requested_format = cvar_string("k_demotxt_format");
 
-	if (trap_FS_OpenFile(filename, &di_handle, FS_WRITE_BIN) < 0)
+	if (format == NULL)
 	{
 		return false;
 	}
 
-	for (i = 0; i < sizeof(file_formats) / sizeof(file_formats[0]); ++i)
+	if (trap_FS_OpenFile(va("%s.%s", filename, format->name), &di_handle, FS_WRITE_BIN) < 0)
 	{
-		if (streq(requested_format, file_formats[i].name))
-		{
-			format = &file_formats[i];
-		}
-	}
-
-	if (!format)
-	{
-		// default to xml
-		format = &file_formats[0];
+		return false;
 	}
 
 	format->match_header(di_handle, ip, port);
@@ -535,6 +545,11 @@ void StatsToFile(void)
 	char name[256] =
 		{ 0 }, *ip = "", *port = "";
 	int i = 0;
+	qbool written = false;
+	qbool send_to_website = !strnull(cvar_string("sv_www_address"));
+	qbool embed_in_mvd = (sv_extensions & SV_EXTENSIONS_MVDHIDDEN);
+	stats_format_t* json_format = NULL;
+	stats_format_t* format = NULL;
 
 	if (strnull(ip = cvar_string("sv_local_addr")) || strnull(port = strchr(ip, ':'))
 			|| !(i = atoi(port + 1)))
@@ -550,25 +565,51 @@ void StatsToFile(void)
 		return; // doesn't record demo or doesn't want stats to be put in file
 	}
 
-	// This file over-written every time
-	snprintf(name, sizeof(name), "demoinfo_%s_%d.txt", ip, i);
+	format = FindStatsFormat(cvar_string("k_demotxt_format"));
+	json_format = FindStatsFormat("json");
 
-	if (CreateStatsFile(name, ip, i))
+	// This file over-written every time
+	snprintf(name, sizeof(name), "demoinfo_%s_%d", ip, i);
+
+	// Always write json, so it can be embedded in demo
+	if (json_format != NULL)
 	{
-		if (!strnull(cvar_string("sv_www_address")))
+		written = CreateStatsFile(name, ip, i, json_format);
+
+		if (written)
 		{
-			localcmd("\n" // why new line?
-					"sv_demoinfoadd ** %s\n"
-					"sv_web_postfile ServerApi/UploadGameStats \"\" * *internal authinfo\n",
-					name);
-			trap_executecmd();
+			// submit to central website
+			if (send_to_website)
+			{
+				localcmd(
+						"\nsv_web_postfile ServerApi/UploadGameStats \"\" \"%s.%s\" *internal authinfo\n",
+						name, json_format->name);
+				trap_executecmd();
+			}
+
+			// if server supports embedding in .mvd/qtv stream, do that
+			if (embed_in_mvd)
+			{
+				localcmd("\nsv_demoembedinfo \"%s.%s\"\n", name, json_format->name);
+				trap_executecmd();
+			}
 		}
-		else
-		{
-			localcmd("\n" // why new line?
-					"sv_demoinfoadd ** %s\n", name);
-			trap_executecmd();
-		}
+
+		written = true;
+	}
+
+	// If non-json version required, generate now
+	if (!streq(format->name, "json"))
+	{
+		written = CreateStatsFile(name, ip, i, format);
+	}
+
+	// add info
+	if (written)
+	{
+		localcmd("\n" // why new line?
+			"sv_demoinfoadd ** %s.%s\n", name, format->name);
+		trap_executecmd();
 	}
 }
 
@@ -577,13 +618,46 @@ int maxspree, maxspree_q, maxdmgg, maxdmgtd, maxrlkills;
 
 void OnePlayerStats(gedict_t *p, int tp)
 {
-	float dmg_g, dmg_t, dmg_team, dmg_self, dmg_eweapon, dmg_g_rl, dmg_td;
-	int ra, ya, ga;
-	int mh, d_rl, k_rl, t_rl;
-	int quad, pent, ring;
-	float ph_rl, vh_rl, h_rl, a_rl, ph_gl, vh_gl, a_gl, h_lg, a_lg, h_sg, a_sg, h_ssg, a_ssg;
-	float e_sg, e_ssg, e_lg;
-	int res, str, hst, rgn;
+	float dmg_g;
+	float dmg_t;
+	float dmg_team;
+	float dmg_self;
+	float dmg_eweapon;
+	float dmg_g_rl;
+	float dmg_td;
+	int ra;
+	int ya;
+	int ga;
+	int mh;
+	int d_rl;
+	int k_rl;
+	int t_rl;
+	int d_lg;
+	int k_lg;
+	int t_lg;
+	int quad;
+	int pent;
+	int ring;
+	float ph_rl;
+	float vh_rl;
+	float h_rl;
+	float a_rl;
+	float ph_gl;
+	float vh_gl;
+	float a_gl;
+	float h_lg;
+	float a_lg;
+	float h_sg;
+	float a_sg;
+	float h_ssg;
+	float a_ssg;
+	float e_sg;
+	float e_ssg;
+	float e_lg;
+	int res;
+	int str;
+	int hst;
+	int rgn;
 
 	dmg_g = p->ps.dmg_g;
 	dmg_g_rl = p->ps.dmg_g_rl;
@@ -622,6 +696,10 @@ void OnePlayerStats(gedict_t *p, int tp)
 	k_rl = p->ps.wpn[wpRL].ekills;
 	t_rl = p->ps.wpn[wpRL].tooks;
 
+	d_lg = p->ps.wpn[wpLG].drops;
+	k_lg = p->ps.wpn[wpLG].ekills;
+	t_lg = p->ps.wpn[wpLG].tooks;
+
 	if (isCTF() && ((g_globalvars.time - match_start_time) > 0))
 	{
 		res = (p->ps.res_time / (g_globalvars.time - match_start_time)) * 100;
@@ -655,7 +733,7 @@ void OnePlayerStats(gedict_t *p, int tp)
 	//	if ( !tp || cvar( "tp_players_stats" ) ) {
 	// weapons
 	G_bprint(2, "%s:%s%s%s%s%s\n", redtext("Wp"),
-				(a_lg ? va(" %s%.1f%% (%d/%d)", redtext("lg"), e_lg, (int) h_lg, (int) a_lg) : ""),
+				(a_lg ? va(" %s%.1f%% (%d/%d)", redtext("lg"), e_lg, (int)h_lg, (int)a_lg) : ""),
 				(ph_rl ? va(" %s%.1f%%", redtext("rl"), ph_rl) : ""),
 				(ph_gl ? va(" %s%.1f%%", redtext("gl"), ph_gl) : ""),
 				(e_sg ? va(" %s%.1f%%", redtext("sg"), e_sg) : ""),
@@ -722,6 +800,21 @@ void OnePlayerStats(gedict_t *p, int tp)
 						va(" %s:%d", redtext("Xfer"), p->ps.transferred_packs) : ""));
 	}
 
+	// lg
+	if (isTeam())
+	{
+		G_bprint(
+				2,
+				"%s: %s:%d %s:%d %s:%d\n",
+				redtext("      LG"),
+				redtext("Took"),
+				t_lg,
+				redtext("Killed"),
+				k_lg,
+				redtext("Dropped"),
+				d_lg);
+	}
+
 	// damage
 	if (isTeam() && (deathmatch == 1))
 	{
@@ -757,11 +850,11 @@ void OnePlayerStats(gedict_t *p, int tp)
 	if (isDuel())
 	{
 		//  endgame h & a
-		G_bprint(2, " %s: %s:%d %s:", redtext("EndGame"), redtext("H"), (int) p->s.v.health,
+		G_bprint(2, " %s: %s:%d %s:", redtext("EndGame"), redtext("H"), (int)p->s.v.health,
 					redtext("A"));
 		if ((int)p->s.v.armorvalue)
 		{
-			G_bprint(2, "%s%d\n", armor_type(p->s.v.items), (int) p->s.v.armorvalue);
+			G_bprint(2, "%s%d\n", armor_type(p->s.v.items), (int)p->s.v.armorvalue);
 		}
 		else
 		{
@@ -771,11 +864,11 @@ void OnePlayerStats(gedict_t *p, int tp)
 		// overtime h & a
 		if (k_overtime)
 		{
-			G_bprint(2, " %s: %s:%d %s:", redtext("OverTime"), redtext("H"), (int) p->ps.ot_h,
+			G_bprint(2, " %s: %s:%d %s:", redtext("OverTime"), redtext("H"), (int)p->ps.ot_h,
 						redtext("A"));
 			if ((int)p->ps.ot_a)
 			{
-				G_bprint(2, "%s%d\n", armor_type(p->ps.ot_items), (int) p->ps.ot_a);
+				G_bprint(2, "%s%d\n", armor_type(p->ps.ot_items), (int)p->ps.ot_a);
 			}
 			else
 			{
@@ -803,9 +896,9 @@ void OnePlayerStats(gedict_t *p, int tp)
 		G_bprint(PRINT_HIGH, "  %s : \20%d\21\n", redtext("LGC Score"),
 					(int)(e_lg * p->s.v.frags));
 		G_bprint(PRINT_HIGH, "  %s : %.1f%% (%d/%d)\n", redtext("Overshaft"), over * 100.0f / a_lg,
-					(int) over, (int) a_lg);
+					(int)over, (int)a_lg);
 		G_bprint(PRINT_HIGH, "  %s: %.1f%% (%d/%d)\n", redtext("Undershaft"), under * 100.0f / a_lg,
-					(int) under, (int) a_lg);
+					(int)under, (int)a_lg);
 	}
 
 	//	}
@@ -962,7 +1055,7 @@ void TopStats(void)
 				"\235\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236"
 				"\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\237\n"
 				"      Frags: ",
-				g_globalvars.mapname, redtext("top scorers"));
+				mapname, redtext("top scorers"));
 
 	from = f1 = 0;
 	p = find_plrghst(world, &from);
@@ -972,7 +1065,7 @@ void TopStats(void)
 				|| (isCTF() && ((p->s.v.frags - p->ps.ctf_points) == maxfrags)))
 		{
 			G_bprint(2, "%s%s%s \220%d\221\n", (f1 ? "             " : ""),
-						(isghost(p) ? "\203" : ""), getname(p), (int) maxfrags);
+						(isghost(p) ? "\203" : ""), getname(p), (int)maxfrags);
 			f1 = 1;
 		}
 
@@ -988,7 +1081,7 @@ void TopStats(void)
 		if (p->deaths == maxdeaths)
 		{
 			G_bprint(2, "%s%s%s \220%d\221\n", (f1 ? "             " : ""),
-						(isghost(p) ? "\203" : ""), getname(p), (int) maxdeaths);
+						(isghost(p) ? "\203" : ""), getname(p), (int)maxdeaths);
 			f1 = 1;
 		}
 
@@ -1006,7 +1099,7 @@ void TopStats(void)
 			if (p->friendly == maxfriend)
 			{
 				G_bprint(2, "%s%s%s \220%d\221\n", (f1 ? "             " : ""),
-							(isghost(p) ? "\203" : ""), getname(p), (int) maxfriend);
+							(isghost(p) ? "\203" : ""), getname(p), (int)maxfriend);
 				f1 = 1;
 			}
 
@@ -1153,7 +1246,7 @@ void TopStats(void)
 				if (p->ps.caps == maxcaps)
 				{
 					G_bprint(2, "%s%s%s \220%d\221\n", (f1 ? "             " : ""),
-								(isghost(p) ? "\203" : ""), getname(p), (int) maxcaps);
+								(isghost(p) ? "\203" : ""), getname(p), (int)maxcaps);
 					f1 = 1;
 				}
 
@@ -1171,7 +1264,7 @@ void TopStats(void)
 				if (p->ps.f_defends == maxdefends)
 				{
 					G_bprint(2, "%s%s%s \220%d\221\n", (f1 ? "             " : ""),
-								(isghost(p) ? "\203" : ""), getname(p), (int) maxdefends);
+								(isghost(p) ? "\203" : ""), getname(p), (int)maxdefends);
 					f1 = 1;
 				}
 
@@ -1406,12 +1499,12 @@ void OnePlayerInstagibStats(gedict_t *p, int tp)
 
 	stats_text = va("%s \220%s\221\n", stats_text, "SCORES");
 	stats_text = va("%s  %s: %.1f\n", stats_text, redtext("Efficiency"), p->efficiency);
-	stats_text = va("%s  %s: %d\n", stats_text, redtext("Points"), (int) p->s.v.frags);
+	stats_text = va("%s  %s: %d\n", stats_text, redtext("Points"), (int)p->s.v.frags);
 	stats_text = va("%s  %s: %d\n", stats_text, redtext("Frags"),
 					p->ps.i_cggibs + p->ps.i_axegibs + p->ps.i_stompgibs);
 	if (tp)
-		stats_text = va("%s  %s: %d\n", stats_text, redtext("Teamkills"), (int) p->friendly);
-	stats_text = va("%s  %s: %d\n", stats_text, redtext("Deaths"), (int) p->deaths);
+		stats_text = va("%s  %s: %d\n", stats_text, redtext("Teamkills"), (int)p->friendly);
+	stats_text = va("%s  %s: %d\n", stats_text, redtext("Deaths"), (int)p->deaths);
 
 	stats_text = va("%s  %s: %d\n", stats_text, redtext("Streaks"), p->ps.spree_max);
 	stats_text = va("%s  %s: %d\n", stats_text, redtext("Spawns"), p->ps.spawn_frags);
@@ -1480,7 +1573,7 @@ void OnePlayerMidairStats(gedict_t *p, int tp)
 	a_rl = p->ps.wpn[wpRL].attacks;
 	ph_rl = 100.0 * vh_rl / max(1, a_rl);
 
-	G_bprint(2, "\207 %s%s: %d\n", (isghost(p) ? "\203" : ""), getname(p), (int) p->s.v.frags);
+	G_bprint(2, "\207 %s%s: %d\n", (isghost(p) ? "\203" : ""), getname(p), (int)p->s.v.frags);
 	G_bprint(2, "   %-13s: %d\n", redtext("total midairs"), p->ps.mid_total);
 	G_bprint(2, "    %12s: %d\n", "bronze", p->ps.mid_bronze);
 	G_bprint(2, "    %12s: %d\n", "silver", p->ps.mid_silver);
@@ -1507,9 +1600,9 @@ void EM_CorrectStats(void)
 	for (p = world; (p = find_plr(p));)
 	{
 		// take away powerups so scoreboard looks normal
-		p->s.v.items = (int) p->s.v.items
+		p->s.v.items = (int)p->s.v.items
 				& ~(IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD);
-		p->s.v.effects = (int) p->s.v.effects
+		p->s.v.effects = (int)p->s.v.effects
 				& ~(EF_DIMLIGHT | EF_BRIGHTLIGHT | EF_BLUE | EF_RED | EF_GREEN);
 		p->invisible_finished = 0;
 		p->invincible_finished = 0;

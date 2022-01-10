@@ -76,7 +76,7 @@ static void xml_team_header(fileHandle_t handle, int num, teamStats_t *stats)
 	s2di(handle,
 			INDENT4 "<team name=\"%s\" frags=\"%d\" deaths=\"%d\" tkills=\"%d\" dmg_tkn=\"%d\" dmg_gvn=\"%d\" dmg_tm=\"%d\">\n",
 			xml_string(stats->name), stats->frags + stats->gfrags, stats->deaths, stats->tkills,
-			(int) stats->dmg_t, (int) stats->dmg_g, (int) stats->dmg_team);
+			(int)stats->dmg_t, (int)stats->dmg_g, (int)stats->dmg_team);
 }
 
 static void xml_team_footer(fileHandle_t handle)
@@ -96,7 +96,7 @@ static void xml_item_stats(fileHandle_t handle, int j, itType_t *stats)
 
 	if (itPowerup(j))
 	{
-		snprintf(buf, sizeof(buf), " time=\"%d\"", (int) stats->time);
+		snprintf(buf, sizeof(buf), " time=\"%d\"", (int)stats->time);
 	}
 	else
 	{
@@ -233,7 +233,7 @@ void xml_match_header(fileHandle_t handle, char *ip, int port)
 	s2di(handle, "%s", "<?xml version=\"1.0\"?>\n");
 	s2di(handle,
 			"<match version=\"3\" date=\"%s\" map=\"%s\" hostname=\"%s\" ip=\"%s\" port=\"%d\" mode=\"%s\" tl=\"%d\" fl=\"%d\" dmm=\"%d\" tp=\"%d\">\n",
-			date, g_globalvars.mapname, xml_string(cvar_string("hostname")), ip, port, mode,
+			date, mapname, xml_string(cvar_string("hostname")), ip, port, mode,
 			timelimit, fraglimit, deathmatch, teamplay);
 	if (!strnull(cvar_string("serverdemo")))
 	{
@@ -311,7 +311,7 @@ void xml_race_detail(fileHandle_t handle)
 		s2di(handle, INDENT4 "<racer avgspeed=\"%f\" distance=\"%f\" time=\"%f\" "
 				"racer=\"%s\" weaponmode=\"%d\" startmode=\"%d\" maxspeed=\"%f\">\n",
 				record->avgspeed / record->avgcount, record->distance, record->time,
-				xml_string(p->netname), record->maxspeed);
+				xml_string(p->netname), record->weaponmode, record->startmode, record->maxspeed);
 		s2di(handle, INDENT2 "</race>\n");
 	}
 }

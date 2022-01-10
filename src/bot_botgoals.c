@@ -11,7 +11,6 @@
 #ifdef BOT_SUPPORT
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 //static float best_score;
 #define BACKPACK_CLASSNAME "backpack"
@@ -28,8 +27,8 @@ void SUB_regen_powerups();
 
 qbool WaitingToRespawn(gedict_t *ent)
 {
-	return ((ent->s.v.nextthink >= g_globalvars.time && ent->think == (func_t) SUB_regen_powerups)
-			|| (ent->s.v.nextthink >= g_globalvars.time && ent->think == (func_t) SUB_regen))
+	return (((ent->s.v.nextthink >= g_globalvars.time) && (ent->think == (func_t)SUB_regen_powerups))
+			|| ((ent->s.v.nextthink >= g_globalvars.time) && (ent->think == (func_t)SUB_regen)))
 			&& strnull(ent->model);
 }
 

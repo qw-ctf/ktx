@@ -28,7 +28,6 @@
 //
 //===========================================================================
 #include "g_local.h"
-#include "fb_globals.h"
 
 vec3_t VEC_ORIGIN =
 	{ 0, 0, 0 };
@@ -100,8 +99,8 @@ qbool CheckRate(gedict_t *p, char *newrate)
 		{
 			G_sprint(p, 2, "\nYour %s setting is too high for this server.\n"
 						"Rate set to %d\n",
-						redtext("rate"), (int) maxrate);
-			stuffcmd_flags(p, STUFFCMD_IGNOREINDEMO, "rate %d\n", (int) maxrate);
+						redtext("rate"), (int)maxrate);
+			stuffcmd_flags(p, STUFFCMD_IGNOREINDEMO, "rate %d\n", (int)maxrate);
 			ret = true;
 		}
 
@@ -109,8 +108,8 @@ qbool CheckRate(gedict_t *p, char *newrate)
 		{
 			G_sprint(p, 2, "\nYour %s setting is too low for this server.\n"
 						"Rate set to %d\n",
-						redtext("rate"), (int) minrate);
-			stuffcmd_flags(p, STUFFCMD_IGNOREINDEMO, "rate %d\n", (int) minrate);
+						redtext("rate"), (int)minrate);
+			stuffcmd_flags(p, STUFFCMD_IGNOREINDEMO, "rate %d\n", (int)minrate);
 			ret = true;
 		}
 	}
@@ -128,7 +127,7 @@ qbool CheckRate(gedict_t *p, char *newrate)
 void CheckTiming()
 {
 	float timing_players_time = bound(0, cvar("timing_players_time"), 30);
-	int timing_players_action = TA_ALL & (int) cvar("timing_players_action");
+	int timing_players_action = TA_ALL & (int)cvar("timing_players_action");
 	gedict_t *p;
 
 	if (!cvar("allow_timing"))
@@ -184,7 +183,7 @@ void CheckTiming()
 			if (timing_players_action & TA_GLOW)
 			{
 				// we can't set this in CheckLightEffects() because CheckLightEffects() will not called if client lagged
-				p->s.v.effects = (int) p->s.v.effects | EF_DIMLIGHT;
+				p->s.v.effects = (int)p->s.v.effects | EF_DIMLIGHT;
 			}
 		}
 		else
@@ -209,7 +208,7 @@ char nextmap[64] = "";
 
 void set_nextmap(char *map)
 {
-	strlcpy(nextmap, strnull(map) ? g_globalvars.mapname : map, sizeof(nextmap));
+	strlcpy(nextmap, strnull(map) ? mapname : map, sizeof(nextmap));
 }
 
 /*QUAKED info_intermission (1 0.5 0.5) (-16 -16 -16) (16 16 16)
@@ -396,6 +395,7 @@ void SetChangeParms()
 	g_globalvars.parm12 = self->k_coach;
 	g_globalvars.parm13 = self->k_stuff;
 	g_globalvars.parm14 = self->ps.handicap;
+	g_globalvars.parm15 = self->ready;
 }
 
 //
@@ -416,6 +416,7 @@ void SetNewParms()
 	g_globalvars.parm12 = 0;
 	g_globalvars.parm13 = 0;
 	g_globalvars.parm14 = 0;
+	g_globalvars.parm15 = 0;
 }
 
 //
@@ -425,7 +426,7 @@ void SetRespawnParms()
 {
 	if (!deathmatch)
 	{
-		if (streq(g_globalvars.mapname, "start"))
+		if (streq(mapname, "start"))
 		{
 			InGameParams(); // take away all stuff on starting new episode
 		}
@@ -455,6 +456,7 @@ void SetRespawnParms()
 		g_globalvars.parm12 = 0;
 		g_globalvars.parm13 = 0;
 		g_globalvars.parm14 = 0;
+		g_globalvars.parm15 = 0;
 	}
 }
 
@@ -490,6 +492,11 @@ void DecodeLevelParms()
 	if (g_globalvars.parm14)
 	{
 		self->ps.handicap = g_globalvars.parm14;
+	}
+
+	if (g_globalvars.parm15)
+	{
+		self->ready = g_globalvars.parm15;
 	}
 }
 
@@ -561,7 +568,7 @@ void GotoNextMap()
 		}
 		else
 		{
-			strlcpy(newmap, g_globalvars.mapname, sizeof(newmap));
+			strlcpy(newmap, mapname, sizeof(newmap));
 		}
 	}
 	else
@@ -582,9 +589,9 @@ void GotoNextMap()
 	{
 		changelevel(nextmap);
 	}
-	else if (!strnull(g_globalvars.mapname))
+	else if (!strnull(mapname))
 	{
-		changelevel(g_globalvars.mapname);
+		changelevel(mapname);
 	}
 	else
 	{
@@ -762,7 +769,7 @@ void SP_trigger_changelevel()
 
 	// qqshka: yeah, treat k_remove_end_hurt as hint to remove some shit from this level,
 	//         not only hurt trigger
-	if (streq("end", g_globalvars.mapname) && cvar("k_remove_end_hurt")
+	if (streq("end", mapname) && cvar("k_remove_end_hurt")
 			&& (cvar("k_remove_end_hurt") != 2))
 	{
 		soft_ent_remove(self);
@@ -799,49 +806,49 @@ void NextLevel()
 	}
 	else
 	{
-		set_nextmap(g_globalvars.mapname);
+		set_nextmap(mapname);
 	}
 
 	o = spawn();
-	o->map = g_globalvars.mapname;
+	o->map = mapname;
 	o->classname = "trigger_changelevel";
 	o->think = (func_t) execute_changelevel;
 	o->s.v.nextthink = g_globalvars.time + 0.1;
 
 	/*
-	 if ( streq( g_globalvars.mapname, "start" ) )
+	 if ( streq( mapname, "start" ) )
 	 {
 	 if ( !trap_cvar( "registered" ) )
 	 {
-	 strlcpy( g_globalvars.mapname, "e1m1", sizeof(g_globalvars.mapname) );
+	 strlcpy( mapname, "e1m1", sizeof(mapname) );
 
 	 } else if ( !( ( int ) ( g_globalvars.serverflags ) & 1 ) )
 	 {
-	 strlcpy( g_globalvars.mapname, "e1m1", sizeof(g_globalvars.mapname) );
+	 strlcpy( mapname, "e1m1", sizeof(mapname) );
 	 g_globalvars.serverflags =
 	 ( int ) ( g_globalvars.serverflags ) | 1;
 
 	 } else if ( !( ( int ) ( g_globalvars.serverflags ) & 2 ) )
 	 {
-	 strlcpy( g_globalvars.mapname, "e2m1", sizeof(g_globalvars.mapname) );
+	 strlcpy( mapname, "e2m1", sizeof(mapname) );
 	 g_globalvars.serverflags =
 	 ( int ) ( g_globalvars.serverflags ) | 2;
 
 	 } else if ( !( ( int ) ( g_globalvars.serverflags ) & 4 ) )
 	 {
-	 strlcpy( g_globalvars.mapname, "e3m1", sizeof(g_globalvars.mapname) );
+	 strlcpy( mapname, "e3m1", sizeof(mapname) );
 	 g_globalvars.serverflags =
 	 ( int ) ( g_globalvars.serverflags ) | 4;
 
 	 } else if ( !( ( int ) ( g_globalvars.serverflags ) & 8 ) )
 	 {
-	 strlcpy( g_globalvars.mapname, "e4m1", sizeof(g_globalvars.mapname) );
+	 strlcpy( mapname, "e4m1", sizeof(mapname) );
 	 g_globalvars.serverflags =
 	 ( int ) ( g_globalvars.serverflags ) - 7;
 	 }
 
 	 o = spawn();
-	 o->map = g_globalvars.mapname;
+	 o->map = mapname;
 	 } else
 	 {
 	 // find a trigger changelevel
@@ -849,7 +856,7 @@ void NextLevel()
 	 if ( !o )
 	 {		// go back to same map if no trigger_changelevel
 	 o = spawn();
-	 o->map = g_globalvars.mapname;
+	 o->map = mapname;
 	 }
 	 }
 
@@ -1172,7 +1179,7 @@ gedict_t* Sub_SelectSpawnPoint(char *spawnname)
 		// Get a random spawn point
 		for (spot = spots; i < numspots; i++)
 		{
-			f = f - self->spawn_weights[(int) spot->cnt];
+			f = f - self->spawn_weights[(int)spot->cnt];
 
 			// Finished randomizing
 			if (f < 0)
@@ -1191,16 +1198,16 @@ gedict_t* Sub_SelectSpawnPoint(char *spawnname)
 		spot = spots;
 
 		// Fix weights
-		f = self->spawn_weights[(int) spawnp->cnt] / 2;
+		f = self->spawn_weights[(int)spawnp->cnt] / 2;
 		for (i = 0; i < numspots; i++)
 		{
 			if (spot == spawnp)
 			{
-				self->spawn_weights[(int) spot->cnt] -= f;
+				self->spawn_weights[(int)spot->cnt] -= f;
 			}
 			else
 			{
-				self->spawn_weights[(int) spot->cnt] += (f / (float)(numspots - 1));
+				self->spawn_weights[(int)spot->cnt] += (f / (float)(numspots - 1));
 			}
 
 			spot = PROG_TO_EDICT(spot->s.v.goalentity);
@@ -1372,7 +1379,7 @@ qbool CanConnect()
 
 	for (usrid = 1; usrid < k_userid; usrid++) // search for ghost for this player (localinfo)
 	{
-		if (streq(ezinfokey(world, va("%d", (int) usrid)), self->netname))
+		if (streq(ezinfokey(world, va("%d", (int)usrid)), self->netname))
 		{
 			break;
 		}
@@ -1409,14 +1416,14 @@ qbool CanConnect()
 			{
 				self->k_teamnum = p->k_teamnum; // we alredy have team in localinfo
 				G_bprint(2, "%s \220%s\221 %s %d %s%s\n", self->netname, getteam(self),
-							redtext("rejoins the game with"), (int) self->s.v.frags,
+							redtext("rejoins the game with"), (int)self->s.v.frags,
 							redtext("frag"), redtext(count_s(self->s.v.frags)));
 			}
 			else
 			{
 				self->k_teamnum = 0; // force check is we have team in localinfo or not below
 				G_bprint(2, "%s %s %d %s%s\n", self->netname, redtext("rejoins the game with"),
-							(int) self->s.v.frags, redtext("frag"),
+							(int)self->s.v.frags, redtext("frag"),
 							redtext(count_s(self->s.v.frags)));
 			}
 
@@ -1706,7 +1713,7 @@ void PutClientInServer(void)
 
 	DecodeLevelParms();
 
-	if (!((int) self->s.v.weapon & (int) self->s.v.items))
+	if (!((int)self->s.v.weapon & (int)self->s.v.items))
 		self->s.v.weapon = W_BestWeapon();
 	W_SetCurrentAmmo();
 
@@ -1724,7 +1731,7 @@ void PutClientInServer(void)
 	}
 #ifdef BOT_SUPPORT
 	else if (FrogbotOptionEnabled(FB_OPTION_DEBUG_MOVEMENT) && self->isBot && match_in_progress
-			&& streq(g_globalvars.mapname, "povdmm4"))
+			&& streq(mapname, "povdmm4"))
 	{
 		gedict_t *highest = NULL;
 		for (spot = world; (spot = ez_find(spot, "info_player_deathmatch"));)
@@ -2136,14 +2143,14 @@ void PutClientInServer(void)
 	{
 		if (cvar("k_ctf_hook"))
 		{
-			self->s.v.items = (int) self->s.v.items | IT_HOOK;
+			self->s.v.items = (int)self->s.v.items | IT_HOOK;
 		}
 
 		if (cvar("k_ctf_ga") && deathmatch < 4 && match_in_progress == 2)
 		{
 			self->s.v.armorvalue = 50;
 			self->s.v.armortype = 0.3;
-			self->s.v.items = (int) self->s.v.items | IT_ARMOR1; // add green armor
+			self->s.v.items = (int)self->s.v.items | IT_ARMOR1; // add green armor
 		}
 	}
 
@@ -2155,9 +2162,9 @@ void PutClientInServer(void)
 	// remove particular weapons in dmm4
 	if (deathmatch == 4 && match_in_progress == 2)
 	{
-		int k_disallow_weapons = (int) cvar("k_disallow_weapons") & DA_WPNS;
+		int k_disallow_weapons = (int)cvar("k_disallow_weapons") & DA_WPNS;
 
-		self->s.v.items = (int) self->s.v.items & ~k_disallow_weapons;
+		self->s.v.items = (int)self->s.v.items & ~k_disallow_weapons;
 	}
 
 	// drop down to best weapon actually hold
@@ -2191,7 +2198,7 @@ void PutClientInServer(void)
 		//berzerk will not affect players that logs in during berzerk
 		if (cvar("k_bzk") && k_berzerk)
 		{
-			self->s.v.items = (int) self->s.v.items | IT_QUAD;
+			self->s.v.items = (int)self->s.v.items | IT_QUAD;
 			self->super_time = 1;
 			self->super_damage_finished = g_globalvars.time + 3600;
 		}
@@ -2230,7 +2237,7 @@ void Check_SD(gedict_t *p)
 		return;
 	}
 
-	switch ((int) k_sudden_death)
+	switch ((int)k_sudden_death)
 	{
 		case SD_NORMAL:
 			EndMatch(0);
@@ -2628,7 +2635,7 @@ void MakeGhost()
 
 	while ((f1 < k_userid) && !f2)
 	{
-		if (strnull(ezinfokey(world, va("%d", (int) f1))))
+		if (strnull(ezinfokey(world, va("%d", (int)f1))))
 		{
 			f2 = 1;
 		}
@@ -2667,12 +2674,12 @@ void MakeGhost()
 
 	ghost->ps = self->ps; // save player stats
 	ghost->ghost_dt = g_globalvars.time; // save drop time
-	ghost->ghost_clr = (int) bound(0, iKey(self, "topcolor"), 13) << 8;
-	ghost->ghost_clr |= (int) bound(0, iKey(self, "bottomcolor"), 13); // save colors
+	ghost->ghost_clr = (int)bound(0, iKey(self, "topcolor"), 13) << 8;
+	ghost->ghost_clr |= (int)bound(0, iKey(self, "bottomcolor"), 13); // save colors
 
 //	G_bprint( PRINT_HIGH, "name num: %d team num %d\n", (int)ghost->cnt2, (int)ghost->k_teamnum);
 
-	localcmd("localinfo %d \"%s\"\n", (int) f1, self->netname);
+	localcmd("localinfo %d \"%s\"\n", (int)f1, self->netname);
 	trap_executecmd();
 }
 
@@ -2794,16 +2801,16 @@ void ClientDisconnect()
 		// Change map.
 		if (old_matchless != k_matchLess)
 		{
-			changelevel(g_globalvars.mapname); // force reload current map ASAP!
+			changelevel(mapname); // force reload current map ASAP!
 		}
 		else if (!cvar("lock_practice") && k_practice)
 		{
-			changelevel(g_globalvars.mapname); // force reload current map in practice mode anyway, ASAP
+			changelevel(mapname); // force reload current map in practice mode anyway, ASAP
 		}
 #ifdef BOT_SUPPORT
 		else if (bots_enabled() != old_bots_enabled)
 		{
-			changelevel(g_globalvars.mapname); // need to reload map, dimensions of entities will need to change
+			changelevel(mapname); // need to reload map, dimensions of entities will need to change
 		}
 #endif
 		else
@@ -2815,7 +2822,7 @@ void ClientDisconnect()
 
 void BackFromLag()
 {
-	int timing_players_action = TA_ALL & (int) cvar("timing_players_action");
+	int timing_players_action = TA_ALL & (int)cvar("timing_players_action");
 
 	self->k_timingWarnTime = 0;
 
@@ -2891,7 +2898,7 @@ void Print_Wp_Stats()
 	if ((i = lw) > 0)
 	{
 		i = bound(0, i, sizeof(buf) - 1);
-		memset((void*) buf, (int) '\n', i);
+		memset((void*) buf, (int)'\n', i);
 		buf[i] = 0;
 	}
 
@@ -2914,8 +2921,8 @@ void Print_Wp_Stats()
 	if ((i = lw_x) > 0)
 	{
 		int offset = strlen(buf);
-		i = bound(0, i, (int) sizeof(buf) - offset - 1);
-		memset((void*)(buf + offset), (int) ' ', i);
+		i = bound(0, i, (int)sizeof(buf) - offset - 1);
+		memset((void*)(buf + offset), (int)' ', i);
 		buf[i + offset] = 0;
 	}
 
@@ -3008,8 +3015,8 @@ void Print_Wp_Stats()
 	{
 		int offset = strlen(buf);
 
-		i = bound(0, -i, (int) sizeof(buf) - offset - 1);
-		memset((void*)(buf + offset), (int) ' ', i);
+		i = bound(0, -i, (int)sizeof(buf) - offset - 1);
+		memset((void*)(buf + offset), (int)' ', i);
 		buf[i + offset] = 0;
 	}
 
@@ -3017,8 +3024,8 @@ void Print_Wp_Stats()
 	{
 		int offset = strlen(buf);
 
-		i = bound(0, -i, (int) sizeof(buf) - offset - 1);
-		memset((void*)(buf + offset), (int) '\n', i);
+		i = bound(0, -i, (int)sizeof(buf) - offset - 1);
+		memset((void*)(buf + offset), (int)'\n', i);
 		buf[i + offset] = 0;
 	}
 
@@ -3032,7 +3039,9 @@ void Print_Wp_Stats()
 
 	G_centerprint(self, "%s", buf);
 }
-
+/*
+ * Function is called when a player or spectator enables continuous score display with +scores console command.
+ * */
 void Print_Scores()
 {
 	char buf[1024] =
@@ -3049,7 +3058,7 @@ void Print_Scores()
 	if ((i = ls) > 0)
 	{
 		i = bound(0, i, sizeof(buf) - 1);
-		memset((void*) buf, (int) '\n', i);
+		memset((void*) buf, (int)'\n', i);
 		buf[i] = 0;
 	}
 
@@ -3085,7 +3094,7 @@ void Print_Scores()
 
 		if (flag1 && flag2)
 		{
-			switch ((int) flag1->cnt)
+			switch ((int)flag1->cnt)
 			{
 				case FLAG_AT_BASE:
 					r_f = " ";
@@ -3103,7 +3112,7 @@ void Print_Scores()
 					r_f = " ";
 			}
 
-			switch ((int) flag2->cnt)
+			switch ((int)flag2->cnt)
 			{
 				case FLAG_AT_BASE:
 					b_f = " ";
@@ -3187,8 +3196,41 @@ void Print_Scores()
 		}
 		else
 		{
-			strlcat(buf, last_va = va("  \364:%d  \345:%d  \x90%d\x91", ts, es, ts - es),
-					sizeof(buf));
+			if ((current_umode < 11) || (current_umode > 13))
+			{
+				strlcat(buf, last_va = va("  \364:%d  \345:%d  \x90%d\x91", ts, es, ts - es),
+						sizeof(buf));
+			}
+			else
+			{
+				// if the current UserMode is 2on2on2, 3on3on3, 4on4on4, we have 3 teams
+				int s1 = get_scores1();
+				int s2 = get_scores2();
+				int s3 = get_scores3();
+				char *t1 = cvar_string("_k_team1");
+				char *t2 = cvar_string("_k_team2");
+				char *t3 = cvar_string("_k_team3");
+				char *t = getteam(e);
+
+				if (streq(t1, t))
+				{
+					// the tracked player is in Team 1
+					strlcat(buf, last_va = va("  \364:%d  \345:%d  \x90%d\x91  \345:%d  \x90%d\x91",
+							s1, s2, s1 - s2 , s3, s1 - s3), sizeof(buf));
+				}
+				else if (streq(t2, t))
+				{
+					// the tracked player is in Team 2
+					strlcat(buf, last_va = va("  \364:%d  \345:%d  \x90%d\x91  \345:%d  \x90%d\x91",
+							s2, s1, s2 - s1 , s3, s2 - s3), sizeof(buf));
+				}
+				else if (streq(t3, t))
+				{
+					// the tracked player is in Team 3
+					strlcat(buf, last_va = va("  \364:%d  \345:%d  \x90%d\x91  \345:%d  \x90%d\x91",
+							s3, s1, s3 - s1 , s2, s3 - s2), sizeof(buf));
+				}
+			}
 		}
 	}
 
@@ -3198,8 +3240,8 @@ void Print_Scores()
 	{
 		int offset = strlen(buf);
 
-		i = bound(0, i, (int) sizeof(buf) - offset - 1);
-		memset((void*)(buf + offset), (int) ' ', i);
+		i = bound(0, i, (int)sizeof(buf) - offset - 1);
+		memset((void*)(buf + offset), (int)' ', i);
 		buf[i + offset] = 0;
 	}
 
@@ -3207,8 +3249,8 @@ void Print_Scores()
 	{
 		int offset = strlen(buf);
 
-		i = bound(0, -i, (int) sizeof(buf) - offset - 1);
-		memset((void*)(buf + offset), (int) '\n', i);
+		i = bound(0, -i, (int)sizeof(buf) - offset - 1);
+		memset((void*)(buf + offset), (int)'\n', i);
 		buf[i + offset] = 0;
 	}
 
@@ -3654,7 +3696,7 @@ void CheckPowerups()
 
 		if (self->invisible_finished < g_globalvars.time)
 		{		// just stopped
-			self->s.v.items = (int) self->s.v.items & ~IT_INVISIBILITY;
+			self->s.v.items = (int)self->s.v.items & ~IT_INVISIBILITY;
 			if (cvar("k_instagib"))
 			{
 				G_bprint( PRINT_HIGH, "%s lost his powers\n", self->netname);
@@ -3824,7 +3866,7 @@ void CheckLightEffects(void)
 #endif
 
 	// remove particular EF_xxx
-	self->s.v.effects = (int) self->s.v.effects
+	self->s.v.effects = (int)self->s.v.effects
 			& ~(EF_DIMLIGHT | EF_BRIGHTLIGHT | EF_BLUE | EF_RED | EF_GREEN);
 
 	// well, EF_xxx may originate from different sources, check it all
@@ -3866,27 +3908,27 @@ void CheckLightEffects(void)
 
 	if (dim)
 	{
-		self->s.v.effects = (int) self->s.v.effects | EF_DIMLIGHT;
+		self->s.v.effects = (int)self->s.v.effects | EF_DIMLIGHT;
 	}
 
 	if (brl)
 	{
-		self->s.v.effects = (int) self->s.v.effects | EF_BRIGHTLIGHT;
+		self->s.v.effects = (int)self->s.v.effects | EF_BRIGHTLIGHT;
 	}
 
 	if (r)
 	{
-		self->s.v.effects = (int) self->s.v.effects | EF_RED;
+		self->s.v.effects = (int)self->s.v.effects | EF_RED;
 	}
 
 	if (g)
 	{
-		self->s.v.effects = (int) self->s.v.effects | EF_GREEN;
+		self->s.v.effects = (int)self->s.v.effects | EF_GREEN;
 	}
 
 	if (b)
 	{
-		self->s.v.effects = (int) self->s.v.effects | EF_BLUE;
+		self->s.v.effects = (int)self->s.v.effects | EF_BLUE;
 	}
 }
 
@@ -3918,7 +3960,7 @@ void BothPostThink()
 	if (self->need_clearCP && !self->shownick_time && !self->wp_stats_time && !self->sc_stats_time)
 	{
 		self->need_clearCP = 0;
-		G_centerprint(self, ""); // clear center print
+		G_centerprint(self, "%s", ""); // clear center print
 	}
 
 	KickThink();
@@ -3954,23 +3996,21 @@ void WS_Reset(gedict_t *p)
 }
 
 // spec changed pov, we need update him with new stats
-void WS_OnSpecPovChange(gedict_t *s)
+void WS_OnSpecPovChange(gedict_t *s, qbool force)
 {
 	int i;
-	gedict_t *p;
+	gedict_t *p = s;
 
-	if (s->ct != ctSpec)
+	if (s->ct == ctSpec)
 	{
-		return; // someone joking BADLY! U R NOT A SPEC!
+		p = PROG_TO_EDICT(s->s.v.goalentity);
+		if (p->ct != ctPlayer)
+		{
+			return; // spec tracking whatever but not a player
+		}
 	}
 
-	p = PROG_TO_EDICT(s->s.v.goalentity);
-	if (p->ct != ctPlayer)
-	{
-		return; // spec tracking whatever but not a player
-	}
-
-	if (!iKey(s, "wpsx"))
+	if (!(force || iKey(s, "wpsx")))
 	{
 		return; // spec not interesting in new weapon stats
 	}
@@ -4049,6 +4089,17 @@ void WS_CheckUpdate(gedict_t *p)
 
 	p->wpstats_mask = 0;
 }
+
+void info_wpsx_update(gedict_t* p, char* from, char* to)
+{
+	qbool newly_enabled = atoi(to) && !atoi(from);
+
+	if (newly_enabled)
+	{
+		WS_OnSpecPovChange(p, true);
+	}
+}
+
 // } end of new weapon stats
 // ====================================
 
@@ -4294,12 +4345,12 @@ void SendTeamInfo(gedict_t *t)
 		cnt++;
 
 		cl = NUM_FOR_EDICT(p) - 1;
-		h = bound(0, (int) p->s.v.health, 999);
-		a = bound(0, (int) p->s.v.armorvalue, 999);
+		h = bound(0, (int)p->s.v.health, 999);
+		a = bound(0, (int)p->s.v.armorvalue, 999);
 
 		stuffcmd_flags(t, STUFFCMD_IGNOREINDEMO, "//tinfo %d %d %d %d %d %d %d \"%s\"\n", cl,
-						(int) p->s.v.origin[0], (int) p->s.v.origin[1], (int) p->s.v.origin[2], h,
-						a, (int) p->s.v.items, nick);
+						(int)p->s.v.origin[0], (int)p->s.v.origin[1], (int)p->s.v.origin[2], h,
+						a, (int)p->s.v.items, nick);
 	}
 }
 
@@ -4741,7 +4792,7 @@ void ClientObituary(gedict_t *targ, gedict_t *attacker)
 				g_globalvars.time - match_start_time, cleantext(attackername),
 				cleantext(victimname), death_type(targ->deathtype),
 				(int)(attacker->super_damage_finished > g_globalvars.time ? 1 : 0),
-				(int)targ->s.v.armorvalue, (int) playerheight,
+				(int)targ->s.v.armorvalue, (int)playerheight,
 				g_globalvars.time - targ->spawn_time);
 
 	if (isRA())

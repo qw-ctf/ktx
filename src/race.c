@@ -16,7 +16,7 @@ void SP_info_intermission();
 
 #define RACE_MAX_CAPTURES     600
 #define RACE_CAPTURE_FPS       10
-#define RACE_GUIDE_BASE_ENT    32
+#define RACE_GUIDE_BASE_ENT    (MAX_CLIENTS + 1)
 #define RACE_JUMP_INDICATORS    4
 
 #define RACE_PACEMAKER_JUMPS_CVAR      "k_race_pace_jumps"
@@ -94,8 +94,11 @@ static gedict_t *race_jump_indicators[RACE_JUMP_INDICATORS];
 static float race_jump_indicator_times[RACE_JUMP_INDICATORS];
 
 void ktpro_autotrack_on_powerup_take(gedict_t *racer);
-void race_cancel(qbool cancelrecord, const char *fmt, ...);
-void race_start(qbool cancelrecord, const char *fmt, ...);
+static void race_cancel(qbool cancelrecord, const char *fmt, ...) PRINTF_FUNC(2);
+static void race_start(qbool cancelrecord, const char *fmt, ...) PRINTF_FUNC(2);
+static void race_fwopen(const char *fmt, ...) PRINTF_FUNC(1);
+static void race_fropen(const char *fmt, ...) PRINTF_FUNC(1);
+static void race_fprintf(const char *fmt, ...) PRINTF_FUNC(1);
 void race_unready_all(void);
 void r_route(void);
 void race_record(void);
@@ -152,6 +155,29 @@ static int next_route = -1; // STATIC
 
 //============================================
 
+static void set_usercmd_trace(gedict_t* p, qbool on)
+{
+	int userId = atoi(ezinfokey(p, "*userid"));
+
+	if (userId)
+	{
+		localcmd("sv_usercmdtrace %d %s\n", userId, on ? "on" : "off");
+		trap_executecmd();
+	}
+}
+
+static void clearall_usercmds_settings(void)
+{
+	gedict_t* p;
+
+	for (p = world; (p = find_plr(p)); )
+	{
+		set_usercmd_trace(p, false);
+	}
+}
+
+//============================================
+
 static int get_server_port(void)
 {
 	char *ip, *port;
@@ -175,13 +201,13 @@ static const char* race_filename(const char *extension)
 	if (cvar("k_race_times_per_port"))
 	{
 		snprintf(filename, sizeof(filename), "race/race[%s_r%02d]-w%1ds%1d_%d.%s",
-					g_globalvars.mapname, race.active_route, race.weapon, race.falsestart,
+					mapname, race.active_route, race.weapon, race.falsestart,
 					get_server_port(), extension);
 	}
 	else
 	{
 		snprintf(filename, sizeof(filename), "race/race[%s_r%02d]-w%1ds%1d.%s",
-					g_globalvars.mapname, race.active_route, race.weapon, race.falsestart,
+					mapname, race.active_route, race.weapon, race.falsestart,
 					extension);
 	}
 
@@ -195,7 +221,7 @@ qbool isRACE(void)
 
 static qbool is_valid_record(raceRecord_t *record)
 {
-	return record->time < RACE_INVALID_RECORD_TIME;
+	return (record->time < RACE_INVALID_RECORD_TIME);
 }
 
 static int read_record_param(int param)
@@ -283,6 +309,8 @@ void apply_race_settings(void)
 	char buf[1024 * 4];
 	char *cfg_name;
 
+	clearall_usercmds_settings();
+
 	if (!isRACE())
 	{
 		race_stoprecord(true);
@@ -312,7 +340,7 @@ void apply_race_settings(void)
 		G_cprint("%s", buf);
 	}
 
-	cfg_name = va("configs/usermodes/race/%s.cfg", g_globalvars.mapname);
+	cfg_name = va("configs/usermodes/race/%s.cfg", mapname);
 	if (can_exec(cfg_name))
 	{
 		trap_readcmd(va("exec %s\n", cfg_name), buf, sizeof(buf));
@@ -370,7 +398,7 @@ int race_time(void)
 		return 0; // count time only when race in state raceActive
 	}
 
-	return (g_globalvars.time - race.start_time) * 1000;
+	return ((g_globalvars.time - race.start_time) * 1000);
 }
 
 void setwepall(gedict_t *p)
@@ -482,7 +510,7 @@ void race_init(void)
 // clean up, so we can start actual match and there will be no some shit around
 void race_shutdown(char *msg)
 {
-	race_cancel(true, msg);
+	race_cancel(true, "%s", msg);
 	race_remove_ent();
 	race_unready_all();
 	if (cvar("k_spm_show"))
@@ -767,7 +795,7 @@ qbool race_weapon_allowed(gedict_t *p)
 			return true;
 
 		case raceWeapon2s:
-			return (race_time() >= 2000 ? true : false);
+			return ((race_time() >= 2000) ? true : false);
 
 		default:
 			G_Error("race_weapon_allowed: wrong race.weapon %d", race.weapon);
@@ -1248,7 +1276,7 @@ static void race_end_point_touched(gedict_t *self, gedict_t *other)
 		else
 		{
 			positionString = race_position_string(race.racers_complete);
-			G_bprint(PRINT_HIGH, "\20%s\21 also finished%s \20%.3f\21\n", other->netname,
+			G_bprint(PRINT_HIGH, "\20%s\21 also finished%s%s \20%.3fs\21\n", other->netname,
 						strnull(positionString) ? "" : " in ", positionString,
 						race_time() / 1000.0f);
 			++race.last_completion_eq;
@@ -1305,6 +1333,7 @@ static void race_over(void)
 	}
 
 	read_topscores();
+	clearall_usercmds_settings();
 
 	if (debug)
 	{
@@ -1406,9 +1435,7 @@ static void race_over(void)
 
 							if (demo_references == 1)
 							{
-								localcmd(
-										va("sv_demoremove %s\n",
-											race.records[nameposition].demoname));
+								localcmd("sv_demoremove %s\n", race.records[nameposition].demoname);
 							}
 						}
 					}
@@ -1508,7 +1535,7 @@ static void race_over(void)
 	{
 		// Continue match with next run
 		race_finish_capture(best_time_position == 0 && !blocked_record, best_player_num);
-		race_start(!keep_demo, "");
+		race_start(!keep_demo, "%s", "");
 	}
 }
 
@@ -1678,7 +1705,7 @@ gedict_t* spawn_race_node(raceRouteNode_t *node)
 	e->race_effects = blink_effects_for_nodeType(node->type);
 	e->touch = (func_t) race_node_touch;
 	e->attack_finished = g_globalvars.time + 1; // + 1 so it not touched immidiatelly, look race_node_touch() for more info
-	e->race_RouteNodeType = (int) node->type; // ah, cast
+	e->race_RouteNodeType = (int)node->type; // ah, cast
 
 	// play spawn sound
 	sound(e, CHAN_AUTO, spawn_sound_for_nodeType(node->type), 1, ATTN_NONE);
@@ -1715,7 +1742,7 @@ void race_clear_race_fields(void)
 	}
 }
 
-void race_cancel(qbool cancelrecord, const char *fmt, ...)
+static void race_cancel(qbool cancelrecord, const char *fmt, ...)
 {
 	va_list argptr;
 	char text[1024];
@@ -1728,7 +1755,7 @@ void race_cancel(qbool cancelrecord, const char *fmt, ...)
 
 		race_stoprecord(cancelrecord);
 
-		G_cp2all(""); // clear centerprint
+		G_cp2all("%s", ""); // clear centerprint
 
 		if (!strnull(text))
 		{
@@ -1995,7 +2022,7 @@ qbool race_can_go(qbool cancel)
 // qbool restart:
 // true  - means continue current competition, just select next racer in line, keep best results.
 // false - means start completely new race, reset best result and etc.
-void race_start(qbool cancelrecord, const char *fmt, ...)
+static void race_start(qbool cancelrecord, const char *fmt, ...)
 {
 	va_list argptr;
 	char text[1024];
@@ -2008,7 +2035,7 @@ void race_start(qbool cancelrecord, const char *fmt, ...)
 	va_end(argptr);
 
 	// cancel it first, this will clear something what probably wasn't cleared before
-	race_cancel(cancelrecord, text);
+	race_cancel(cancelrecord, "%s", text);
 
 	// switch status to coutdown
 	race.status = raceCD;
@@ -2151,6 +2178,7 @@ void race_set_one_player_movetype_and_etc(gedict_t *p)
 
 			p->muted = false;
 			setmodel(p, "progs/player.mdl");
+			set_usercmd_trace(p, false);
 			break;
 
 		case raceCD:
@@ -2171,6 +2199,7 @@ void race_set_one_player_movetype_and_etc(gedict_t *p)
 
 			p->muted = (p->racer ? false : true);
 			setmodel(p, (p->racer ? "progs/player.mdl" : ""));
+			set_usercmd_trace(p, false);
 			break;
 
 		case raceActive:
@@ -2183,6 +2212,7 @@ void race_set_one_player_movetype_and_etc(gedict_t *p)
 
 			p->muted = (p->racer ? false : true);
 			setmodel(p, (p->racer ? "progs/player.mdl" : ""));
+			set_usercmd_trace(p, p->racer);
 			break;
 
 		default:
@@ -2456,7 +2486,7 @@ void race_think(void)
 			}
 
 			// advance race status to countdown
-			race_start(true, "");
+			race_start(true, "%s", "");
 
 			return;
 
@@ -2547,7 +2577,7 @@ void race_think(void)
 						}
 					}
 
-					G_cp2all(cp_buf);
+					G_cp2all("%s", cp_buf);
 
 					// check for falsestarts
 					race_check_racer_falsestart(false);
@@ -2943,7 +2973,7 @@ void r_changefollowstatus(float t)
 		return;
 	}
 
-	switch ((int) t)
+	switch ((int)t)
 	{
 		case 1: // rfollow
 			set_player_race_follow(self, 1);
@@ -2976,7 +3006,7 @@ void r_changestatus(float t)
 		return;
 	}
 
-	switch ((int) t)
+	switch ((int)t)
 	{
 		case 1: // race_ready
 			if (match_enabled && race.status)
@@ -3299,7 +3329,7 @@ void r_route(void)
 	}
 
 	// If server-side toggle and map matches, load correct route
-	if ((self->ct != ctPlayer) && streq(cvar_string(RACE_ROUTE_MAPNAME_CVAR), g_globalvars.mapname))
+	if ((self->ct != ctPlayer) && streq(cvar_string(RACE_ROUTE_MAPNAME_CVAR), mapname))
 	{
 		next_route = cvar(RACE_ROUTE_NUMBER_CVAR);
 	}
@@ -3343,7 +3373,7 @@ void r_route(void)
 	}
 
 	cvar_fset(RACE_ROUTE_NUMBER_CVAR, next_route);
-	cvar_set(RACE_ROUTE_MAPNAME_CVAR, g_globalvars.mapname);
+	cvar_set(RACE_ROUTE_MAPNAME_CVAR, mapname);
 	race_clear_pacemaker();
 }
 
@@ -3368,7 +3398,7 @@ void race_fclose(void)
 	race_fhandle = -1;
 }
 
-void race_fwopen(const char *fmt, ...)
+static void race_fwopen(const char *fmt, ...)
 {
 	va_list argptr;
 	char text[MAX_TXTLEN] =
@@ -3391,7 +3421,7 @@ void race_fwopen(const char *fmt, ...)
 	//G_bprint( 2, "Succesfully opened file: %s\n", text );
 }
 
-void race_fropen(const char *fmt, ...)
+static void race_fropen(const char *fmt, ...)
 {
 	va_list argptr;
 	char text[MAX_TXTLEN] =
@@ -3414,7 +3444,7 @@ void race_fropen(const char *fmt, ...)
 	//G_bprint( 2, "Succesfully opened file: %s\n", text );
 }
 
-void race_fprintf(const char *fmt, ...)
+static void race_fprintf(const char *fmt, ...)
 {
 	va_list argptr;
 	char text[MAX_TXTLEN] =
@@ -3482,7 +3512,7 @@ int race_fgetc(void)
 	retval = trap_FS_ReadFile(&c, 1, race_fhandle);
 	//G_bprint( 2, "====> Read char: %d\n", c );
 
-	return (retval == 1 ? c : -1);
+	return ((retval == 1) ? c : -1);
 }
 
 char* race_fgets(char *buf, int limit)
@@ -3784,7 +3814,7 @@ void race_add_standard_routes(void)
 	}
 	else
 	{
-		race_fropen("race/routes/%s.route", g_globalvars.mapname);
+		race_fropen("race/routes/%s.route", mapname);
 	}
 
 	if (race_fhandle >= 0)
@@ -4308,7 +4338,7 @@ void race_pacemaker(void)
 	race_fropen("%s", race_filename("pos"));
 	if (race_fhandle < 0)
 	{
-		G_sprint(self, PRINT_HIGH, "Unable to load pacemaker record.\n", position + 1);
+		G_sprint(self, PRINT_HIGH, "Unable to load pacemaker record.\n");
 
 		return;
 	}
@@ -4795,7 +4825,7 @@ static void race_update_pacemaker(void)
 		int guide_start = 0;
 		int guide_end = 0;
 
-		int resolution = (int) bound(RACE_PACEMAKER_RESOLUTION_MIN,
+		int resolution = (int)bound(RACE_PACEMAKER_RESOLUTION_MIN,
 										cvar(RACE_PACEMAKER_RESOLUTION_CVAR),
 										RACE_PACEMAKER_RESOLUTION_MAX);
 		if (resolution)
@@ -4821,13 +4851,13 @@ static void race_update_pacemaker(void)
 						guide.capture.position_count));
 
 			// Create lightning trail for next part of route
-			if (guide_start || guide_end)
+			if (guide_start >= 0 && guide_end > 0)
 			{
 				int num = 0;
 
 				for (i = guide_start; i < guide_end; i += resolution, ++num)
 				{
-					int next = min(i + resolution, guide.capture.position_count - 1);
+					int next = (int)bound(0, i + resolution, guide.capture.position_count - 1);
 
 					WriteByte(MSG_MULTICAST, SVC_TEMPENTITY);
 					WriteByte(MSG_MULTICAST, TE_LIGHTNING2);
@@ -4974,7 +5004,7 @@ static char* race_position_string(int position)
 static qbool race_simultaneous(void)
 {
 	// We don't support matches where the players go turn about
-	return race_match_mode() || cvar(RACE_SIMULTANEOUS_CVAR);
+	return (race_match_mode() || cvar(RACE_SIMULTANEOUS_CVAR));
 }
 
 void race_player_post_think(void)
@@ -5045,7 +5075,7 @@ void race_player_pre_think(void)
 				{
 					if (((int)(self->s.v.flags)) & FL_JUMPRELEASED)
 					{
-						self->s.v.flags = (int) self->s.v.flags & ~FL_JUMPRELEASED;
+						self->s.v.flags = (int)self->s.v.flags & ~FL_JUMPRELEASED;
 
 						race_advance_chasecam_for_plr(self);
 					}
@@ -5058,8 +5088,12 @@ void race_player_pre_think(void)
 		}
 		else if ((self->ct == ctPlayer) && self->racer && race.status)
 		{
-			stuffcmd_flags(self, STUFFCMD_DEMOONLY, "//ucmd %f %d %d\n", g_globalvars.time,
-							race_encode_user_command(self), NUM_FOR_EDICT(self));
+			// If server supports storing user commands in hidden packets, don't bother with these
+			if (!(sv_extensions & SV_EXTENSIONS_MVDHIDDEN))
+			{
+				stuffcmd_flags(self, STUFFCMD_DEMOONLY, "//ucmd %f %d %d\n", g_globalvars.time,
+								race_encode_user_command(self), NUM_FOR_EDICT(self));
+			}
 		}
 	}
 }
@@ -5112,7 +5146,7 @@ static race_score_system_t scoring_systems[] =
 
 void race_scoring_system_toggle(void)
 {
-	int current = bound(0, (int) cvar(RACE_SCORINGSYSTEM_CVAR), NUM_SCORING_SYSTEMS - 1);
+	int current = bound(0, (int)cvar(RACE_SCORINGSYSTEM_CVAR), NUM_SCORING_SYSTEMS - 1);
 
 	if (!race_command_checks())
 	{
@@ -5132,7 +5166,7 @@ void race_scoring_system_toggle(void)
 
 int race_award_points(int position, int participants)
 {
-	int current = bound(0, (int) cvar(RACE_SCORINGSYSTEM_CVAR), NUM_SCORING_SYSTEMS - 1);
+	int current = bound(0, (int)cvar(RACE_SCORINGSYSTEM_CVAR), NUM_SCORING_SYSTEMS - 1);
 	race_score_system_t *system = &scoring_systems[current];
 	int points = 0;
 
@@ -5217,7 +5251,7 @@ static void race_match_stats_print(char *title, race_stats_score_t *scores, int 
 
 	G_bprint(
 			2,
-			"\n%s\n%s\n\235\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236"
+			"\n%s\n\n\235\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236"
 			"\236\236\236\236\236\236\236\236\236\236\236\236\236\236\236\237\n",
 			redtext(title));
 
@@ -5392,12 +5426,12 @@ void race_match_start(void)
 
 	race.round_number = 0;
 	memset(player_match_info, 0, sizeof(player_match_info));
-	race_start(false, "");
+	race_start(false, "%s", "");
 }
 
 qbool race_match_started(void)
 {
-	return race_match_mode() && (race.status || match_in_progress);
+	return (race_match_mode() && (race.status || match_in_progress));
 }
 
 void race_switch_usermode(const char *displayName, int players_per_team)
@@ -5540,7 +5574,7 @@ static void race_match_round_end(void)
 	{
 		// Standard round... in duels and ffa, can finish as soon as leading player has unassailable lead
 		int rounds_remaining = (race.rounds - race.round_number);
-		int system_no = bound(0, (int) cvar(RACE_SCORINGSYSTEM_CVAR), NUM_SCORING_SYSTEMS - 1);
+		int system_no = bound(0, (int)cvar(RACE_SCORINGSYSTEM_CVAR), NUM_SCORING_SYSTEMS - 1);
 
 		race_score_system_t *system = &scoring_systems[system_no];
 		if (system->round_max_diff && ((rounds_remaining * system->round_max_diff) < sc))
@@ -5556,7 +5590,7 @@ static void race_match_round_end(void)
 	}
 
 	// Start next run
-	race_start(false, "");
+	race_start(false, "%s", "");
 }
 
 qbool race_can_cancel_demo(void)
@@ -5567,7 +5601,7 @@ qbool race_can_cancel_demo(void)
 	}
 
 	// Always save demos as soon as a run is completed
-	return race.round_number == 0 && race.racers_complete == 0;
+	return ((race.round_number == 0) && (race.racers_complete == 0));
 }
 
 int race_count_votes_req(float percentage)
@@ -5593,7 +5627,7 @@ qbool race_allow_map_vote(gedict_t *player)
 		return true;
 	}
 
-	return (racers_ready == 0 || player->race_ready);
+	return ((racers_ready == 0) || player->race_ready);
 }
 
 void race_hide_players_toggle(void)

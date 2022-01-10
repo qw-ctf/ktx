@@ -2,7 +2,6 @@
 #ifdef BOT_SUPPORT
 
 #include "g_local.h"
-#include "fb_globals.h"
 
 #define YAW_SNAP_THRESHOLD     4
 #define PITCH_SNAP_THRESHOLD   6
@@ -164,12 +163,12 @@ static void BotsFireAtWorldLogic(gedict_t *self, vec3_t rel_pos, float *rel_dist
  */
 static qbool IsVelocityWeapon(int impulse)
 {
-	return impulse == 4 || impulse == 5 || impulse == 6 || impulse == 7;
+	return (impulse == 4 || impulse == 5 || impulse == 6 || impulse == 7);
 }
 
 static qbool IsNailgun(int impulse)
 {
-	return impulse == 4 || impulse == 5;
+	return (impulse == 4 || impulse == 5);
 }
 
 // When firing at another player
@@ -228,7 +227,7 @@ static qbool HorizontalVelocityCheck(vec3_t velocity, float threshold)
 {
 	float value = velocity[0] * velocity[0] + velocity[1] * velocity[1];
 
-	return value > threshold * threshold;
+	return (value > (threshold * threshold));
 }
 
 static void CalculateVolatility(gedict_t *self)
@@ -287,12 +286,12 @@ static void CalculateVolatility(gedict_t *self)
 		}
 
 		// Midair penalty - if we're in midair, not as accurate
-		if (!((int) self->s.v.flags & FL_ONGROUND_PARTIALGROUND))
+		if (!((int)self->s.v.flags & FL_ONGROUND_PARTIALGROUND))
 		{
 			volatility += self->fb.skill.self_midair_volatility;
 		}
 
-		if (!((int) opponent->s.v.flags & FL_ONGROUND_PARTIALGROUND))
+		if (!((int)opponent->s.v.flags & FL_ONGROUND_PARTIALGROUND))
 		{
 			volatility += self->fb.skill.opponent_midair_volatility;
 		}
@@ -359,8 +358,8 @@ static void BotsModifyAimAtPlayerLogic(gedict_t *self)
 		if (g_random() < 0.8)
 		{
 			// Randomise the amount but not the side that we're aiming on
-			yaw_rnd = (self->fb.last_rndaim[YAW] > 0 ? 1 : -1) * abs(yaw_rnd);
-			pitch_rnd = (self->fb.last_rndaim[PITCH] > 0 ? 1 : -1) * abs(pitch_rnd);
+			yaw_rnd = (self->fb.last_rndaim[YAW] > 0 ? 1 : -1) * fabs(yaw_rnd);
+			pitch_rnd = (self->fb.last_rndaim[PITCH] > 0 ? 1 : -1) * fabs(pitch_rnd);
 		}
 
 		self->fb.last_rndaim_time = g_globalvars.time;
@@ -398,7 +397,7 @@ static void BotsAimAtFloor(gedict_t *self, vec3_t rel_pos, float rel_dist)
 	{
 		// Always aim for the feet when player is on ground
 		// FIXME: BotsAimAtPlayerLogic already sets rel_pos to origin, then SetFireButton raises it again, but we artificially lower it here... argh!
-		if ((int) self->fb.look_object->s.v.flags & FL_ONGROUND)
+		if ((int)self->fb.look_object->s.v.flags & FL_ONGROUND)
 		{
 			rel_pos[2] -= 20;
 		}
@@ -444,7 +443,7 @@ static void FireAtSpawnPoint(gedict_t *self)
 static void AttackRespawns(gedict_t *self)
 {
 	gedict_t *enemy_ = &g_edicts[self->s.v.enemy];
-	qbool has_rl = ((int) self->s.v.items & IT_ROCKET_LAUNCHER) && self->s.v.ammo_rockets > 3;
+	qbool has_rl = ((int)self->s.v.items & IT_ROCKET_LAUNCHER) && self->s.v.ammo_rockets > 3;
 
 	if (isRA() || isHoonyModeDuel() || !isDuel())
 	{
