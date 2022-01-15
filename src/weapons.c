@@ -483,6 +483,7 @@ void FireInstaBullet(vec3_t dir, deathType_t deathtype)
 	int depth, solid;
 	float fraction;
 	gedict_t *ignore;
+	qbool do_antilag = (self->ct == ctPlayer); // hacky check
 
 	if (cvar("k_cg_kb"))
 	{
@@ -519,6 +520,7 @@ void FireInstaBullet(vec3_t dir, deathType_t deathtype)
 	VectorScale(g_globalvars.v_forward, 10, tmp);
 	VectorAdd(self->s.v.origin, tmp, src);
 	src[2] = self->s.v.absmin[2] + self->s.v.size[2] * 0.7;
+
 
 	for (ignore = self, depth = 0; depth < 32; depth++)
 	{
@@ -598,6 +600,7 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 	qbool classic_shotgun = cvar("k_classic_shotgun");
 	qbool non_random_bullets = (k_yawnmode
 			|| (!match_in_progress && self && (self->ct == ctPlayer) && iKey(self, "nrb")));
+	qbool do_antilag = (self->ct == ctPlayer); // hacky check
 
 	trap_makevectors(self->s.v.v_angle);
 	VectorScale(g_globalvars.v_forward, 10, tmp);
@@ -607,6 +610,9 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 
 	ClearMultiDamage();
 	multi_damage_type = deathtype;
+
+	if (do_antilag)
+		antilag_lagmove_all_hitscan(self);
 
 	if (cvar("k_instagib"))
 	{
@@ -618,6 +624,10 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 		traceline(PASSVEC3(src), src[0] + dir[0] * 2048, src[1] + dir[1] * 2048,
 					src[2] + dir[2] * 2048, false, self);
 	}
+
+	if (do_antilag)
+		antilag_unmove_all();
+
 
 	VectorScale(dir, 4, tmp);
 	VectorSubtract(g_globalvars.trace_endpos, tmp, puff_org);	// puff_org = trace_endpos - dir*4;
@@ -887,7 +897,9 @@ void W_FireShotgun()
 	aim(dir);
 	if (cvar("k_instagib"))
 	{
+		antilag_lagmove_all_hitscan(self); // we can do the antilag check out here in instagib since knockback doesn't matter
 		FireInstaBullet(dir, dtSG);
+		antilag_unmove_all();
 	}
 	else
 	{
@@ -1274,13 +1286,13 @@ void LightningHit(gedict_t *from, float damage)
  */
 void LightningDamage(vec3_t p1, vec3_t p2, gedict_t *from, float damage)
 {
-	int from_player = (from->classname == "player");
-	if (from_player)
+	qbool do_antilag = (from->ct == ctPlayer);  // hacky check
+	if (do_antilag)
 		antilag_lagmove_all_hitscan(from);
 
 	traceline(PASSVEC3(p1), PASSVEC3(p2), false, from);
 
-	if (from_player)
+	if (do_antilag)
 		antilag_unmove_all();
 
 	if (PROG_TO_EDICT(g_globalvars.trace_ent)->s.v.takedamage)
@@ -2321,9 +2333,8 @@ void W_Attack()
 				}
 			}
 
-			antilag_lagmove_all_hitscan(self);
+
 			W_FireShotgun();
-			antilag_unmove_all();
 			break;
 
 		case IT_SUPER_SHOTGUN:
@@ -2339,9 +2350,7 @@ void W_Attack()
 				self->attack_finished = self->client_time + (k_yawnmode ? 0.8 : 0.7);
 			}
 
-			antilag_lagmove_all_hitscan(self);
 			W_FireSuperShotgun();
-			antilag_unmove_all();
 			break;
 
 		case IT_NAILGUN:
