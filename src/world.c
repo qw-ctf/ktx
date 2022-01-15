@@ -1044,6 +1044,8 @@ void FirstFrame()
 	RegisterCvarEx("k_privategame_force_reconnect", "1"); // when voting for private game, kick unauthed players
 
 // below globals changed only here
+	
+
 
 	k_matchLess = cvar("k_matchless");
 	k_matchLess_idle_time =

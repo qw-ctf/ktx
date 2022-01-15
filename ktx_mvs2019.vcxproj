@@ -711,9 +711,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\game.def" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="include\bg_lib.h" />
     <ClInclude Include="include\g_consts.h" />
     <ClInclude Include="include\g_local.h" />

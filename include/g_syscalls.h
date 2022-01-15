@@ -143,11 +143,12 @@ intptr_t trap_movetogoal(float dist);
 
 void trap_VisibleTo(intptr_t viewer, intptr_t first, intptr_t len, byte *visible);
 
-#ifdef FTESV
 void trap_SetExtField_i(gedict_t *ed, const char *fieldname, int val);
 void trap_SetExtField_f(gedict_t *ed, const char *fieldname, float val);
 int trap_GetExtField_i(gedict_t *ed, const char *fieldname);
 float trap_GetExtField_f(gedict_t *ed, const char *fieldname);
+void trap_SetSendNeeded(int subject, int flags, int to);
+#ifdef FTESV
 void trap_changelevelHub(const char *name, const char *entityname, const char *startspot);
 int trap_URI_Query(const char *uri, int vmentry/*GAME_...*/, void *cbcontext, const char *mimetype, const char *data, size_t datasize);
 int trap_particleeffectnum(const char *effectname);

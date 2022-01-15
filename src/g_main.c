@@ -56,7 +56,6 @@ field_t expfields[] =
 	{ "hideentity", 		FOFS(hideentity), 			F_INT },
 	{ "trackent", 			FOFS(trackent), 			F_INT },
 	{ "hideplayers", 		FOFS(hideplayers), 			F_INT },
-	{ "visclients", 		FOFS(visclients), 			F_INT },
 // FTE does not support this.
 // We does not really have to explicitly disable them since server engine should ignore unsupported fields.
 // But Spike insists on this. Probably for clarity.
@@ -436,6 +435,15 @@ intptr_t VISIBILITY_VISIBLE vmMain(
 			initialise_spawned_ent(PROG_TO_EDICT(g_globalvars.self));
 
 			return 0;
+
+		case GAME_EDICT_CSQCSEND:
+
+			self = PROG_TO_EDICT(g_globalvars.self);
+
+			if (self->SendEntity)
+				return ((int(*)())(self->SendEntity))(PROG_TO_EDICT(arg0), arg1);
+
+			return 0;
 	}
 
 	return 0;
@@ -633,7 +641,7 @@ static qbool check_ezquake(gedict_t *p)
 
 //===========================================================================
 
-#ifdef FTESV
+
 
 qbool haveextensiontab[G_EXTENSIONS_LAST-G_EXTENSIONS_FIRST];
 
@@ -648,6 +656,8 @@ static qbool G_InitExtensions(void)
 	{
 		{"SetExtField",			G_SETEXTFIELD},
 		{"GetExtField",			G_GETEXTFIELD},
+		{"setsendneeded",		G_SETSENDNEEDED},
+		#ifdef FTESV
 		{"ChangeLevelHub",		G_CHANGELEVEL_HUB},
 		{"URI_Query",			G_URI_QUERY},
 		{"particleeffectnum",	G_PARTICLEEFFECTNUM},
@@ -655,6 +665,7 @@ static qbool G_InitExtensions(void)
 		{"pointparticles",		G_POINTPARTICLES},
 		{"clientstat",			G_CLIENTSTAT},
 		{"pointerstat",			G_POINTERSTAT},
+		#endif
 	};
 	int i;
 	for (i = 0; i < sizeof(exttraps)/sizeof(exttraps[0]); i++)
@@ -668,9 +679,3 @@ static qbool G_InitExtensions(void)
 
 	return success;
 }
-#else
-static qbool G_InitExtensions(void)
-{
-	return true;
-}
-#endif

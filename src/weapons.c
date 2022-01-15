@@ -69,6 +69,51 @@ void W_Precache()
 void W_FireSpikes(float ox);
 void W_FireLightning();
 
+
+qbool SendEntity_Projectile(gedict_t *to, int sendflags)
+{
+	WriteByte(MSG_ENTITY, NENT_PROJECTILE);
+	WriteByte(MSG_ENTITY, sendflags);
+
+
+	if (sendflags & 1)
+	{
+		WriteCoord(MSG_ENTITY, self->s.v.origin[0]);
+		WriteCoord(MSG_ENTITY, self->s.v.origin[1]);
+		WriteCoord(MSG_ENTITY, self->s.v.origin[2]);
+
+		WriteCoord(MSG_ENTITY, self->s.v.velocity[0]);
+		WriteCoord(MSG_ENTITY, self->s.v.velocity[1]);
+		WriteCoord(MSG_ENTITY, self->s.v.velocity[2]);
+
+		WriteFloat(MSG_ENTITY, g_globalvars.time);
+	}
+
+
+	if (sendflags & 2)
+	{
+		WriteShort(MSG_ENTITY, self->s.v.modelindex);
+		WriteShort(MSG_ENTITY, self->s.v.effects);
+	}
+
+
+	if (sendflags & 4)
+	{
+		WriteAngle(MSG_ENTITY, self->s.v.angles[0]);
+		WriteAngle(MSG_ENTITY, self->s.v.angles[1]);
+		WriteAngle(MSG_ENTITY, self->s.v.angles[2]);
+	}
+
+	if (sendflags & 8)
+	{
+		WriteEntity(MSG_ENTITY, PROG_TO_EDICT(self->s.v.owner)); // we only care about the owner if it's a player, otherwise world
+		WriteByte(MSG_ENTITY, self->client_time * 255);
+	}
+
+	return true;
+}
+
+
 /*
  ================
  W_FireAxe
@@ -1149,6 +1194,11 @@ void W_FireRocket()
 	newmis->isMissile = true;
 	newmis->s.v.solid = (isRACE() ? SOLID_TRIGGER : SOLID_BBOX);
 
+	// CSQC projectile optmization
+	trap_SetExtField_i(newmis, "SendEntity", 1);
+	newmis->SendEntity = (func_t)SendEntity_Projectile;
+	trap_SetSendNeeded(NUM_FOR_EDICT(newmis), 255, 0);
+
 	// set newmis speed
 	trap_makevectors(self->s.v.v_angle);
 	aim(newmis->s.v.velocity);	// = aim(self, 1000);
@@ -1580,6 +1630,11 @@ void launch_spike(vec3_t org, vec3_t dir)
 	VectorScale(dir, (k_yawnmode ? 1800 : 1000), newmis->s.v.velocity);
 
 	vectoangles(newmis->s.v.velocity, newmis->s.v.angles);
+
+	// CSQC projectile optmization
+	trap_SetExtField_i(newmis, "SendEntity", 1);
+	newmis->SendEntity = (func_t)SendEntity_Projectile;
+	trap_SetSendNeeded(NUM_FOR_EDICT(newmis), 255, 0);
 }
 
 static qbool race_ignore_spike(gedict_t *self, gedict_t *other)

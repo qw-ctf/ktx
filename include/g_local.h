@@ -179,7 +179,7 @@ typedef enum
 	lsRACE
 } lsType_t; // lastscores type
 
-#ifdef FTESV
+
 // Spike:
 // Extension builtins.
 // The order of these don't matter (qqshka: what about QVM builds? look g_syscalls.asm, we need something similar for extensions I guess),
@@ -190,6 +190,8 @@ enum
 {
 	G_SETEXTFIELD = G_EXTENSIONS_FIRST,
 	G_GETEXTFIELD,
+	G_SETSENDNEEDED,
+	#ifdef FTESV
 	G_CHANGELEVEL_HUB,
 	G_URI_QUERY,
 	G_PARTICLEEFFECTNUM,
@@ -197,11 +199,11 @@ enum
 	G_POINTPARTICLES,
 	G_CLIENTSTAT,
 	G_POINTERSTAT,
+	#endif
 	G_EXTENSIONS_LAST
 };
 extern qbool haveextensiontab[G_EXTENSIONS_LAST-G_EXTENSIONS_FIRST];
 #define HAVEEXTENSION(idx) haveextensiontab[(idx) - G_EXTENSIONS_FIRST]
-#endif
 
 #define DEATHTYPE( _dt_, _dt_str_ ) _dt_,
 typedef enum
@@ -305,6 +307,7 @@ void WriteEntity(int to, gedict_t *ed);
 void WriteByte(int to, int data);
 void WriteShort(int to, int data);
 void WriteLong(int to, int data);
+void WriteFloat(int to, float data);
 void WriteString(int to, char *data);
 void WriteAngle(int to, float data);
 void WriteCoord(int to, float data);
@@ -369,6 +372,7 @@ char* Enabled(float f);
 char* Allows(float f);
 char* Allowed(float f);
 char* OnOff(float f);
+char* AntilagModeString(float f);
 
 int get_scores1();
 int get_scores2();

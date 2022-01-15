@@ -466,7 +466,6 @@ void trap_VisibleTo(intptr_t viewer, intptr_t first, intptr_t len, byte *visible
 	syscall(G_VISIBLETO, viewer, first, len, (intptr_t) visible);
 }
 
-#ifdef FTESV
 void trap_SetExtField_i(gedict_t *ed, const char *fieldname, int val)
 {
 	syscall(G_SETEXTFIELD, (intptr_t)ed, (intptr_t)fieldname, val);
@@ -489,6 +488,13 @@ float trap_GetExtField_f(gedict_t *ed, const char *fieldname)
 	return tmp._float;
 }
 
+void trap_SetSendNeeded(int subject, int flags, int to)
+{
+	syscall(G_SETSENDNEEDED, subject, flags, to);
+}
+
+
+#ifdef FTESV
 void trap_changelevelHub(const char *name, const char *entityname, const char *startspot)
 {
 	syscall(G_CHANGELEVEL_HUB, name, entityname, startspot);

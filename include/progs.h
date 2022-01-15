@@ -1202,6 +1202,12 @@ typedef struct gedict_s
 	float client_thinkindex;
 	float client_ping;
 	float client_predflags;
+	struct gedict_s *weapon_pred;
+// }
+
+
+// { csqc
+	func_t SendEntity;
 // }
 } gedict_t;
 

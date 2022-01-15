@@ -366,6 +366,7 @@ const char CD_NODESC[] = "no desc";
 #define CD_DROPQUAD			"drop quad when killed"
 #define CD_DROPRING			"drop ring when killed"
 #define CD_DROPPACK			"drop pack when killed"
+#define CD_DROPMSG			"toggle drop pack message"
 #define CD_SILENCE			"toggle spectator talk"
 #define CD_REPORT			"simple teamplay report"
 #define CD_RULES			"show game rules"
