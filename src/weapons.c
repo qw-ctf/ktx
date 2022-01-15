@@ -608,6 +608,7 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 	//src = self->s.v.origin + v_forward*10;
 	src[2] = self->s.v.absmin[2] + self->s.v.size[2] * 0.7;
 
+
 	ClearMultiDamage();
 	multi_damage_type = deathtype;
 
@@ -624,10 +625,6 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 		traceline(PASSVEC3(src), src[0] + dir[0] * 2048, src[1] + dir[1] * 2048,
 					src[2] + dir[2] * 2048, false, self);
 	}
-
-	if (do_antilag)
-		antilag_unmove_all();
-
 
 	VectorScale(dir, 4, tmp);
 	VectorSubtract(g_globalvars.trace_endpos, tmp, puff_org);	// puff_org = trace_endpos - dir*4;
@@ -778,6 +775,9 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 
 		shotcount = shotcount - 1;
 	}
+
+	if (do_antilag)
+		antilag_unmove_all();
 
 	ApplyMultiDamage();
 	if (!classic_shotgun)
