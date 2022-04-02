@@ -1199,6 +1199,7 @@ void W_FireRocket()
 	g_globalvars.msg_entity = EDICT_TO_PROG(self);
 	WriteByte( MSG_ONE, SVC_SMALLKICK);
 
+
 	newmis = spawn();
 	g_globalvars.newmis = EDICT_TO_PROG(newmis);
 	newmis->s.v.owner = EDICT_TO_PROG(self);
@@ -1252,6 +1253,12 @@ void W_FireRocket()
 #ifdef BOT_SUPPORT
 	BotsRocketSpawned(newmis);
 #endif
+
+	if (cvar("sv_antilag") == 1)
+	{
+		g_globalvars.newmis = EDICT_TO_PROG(world);
+		newmis = world;
+	}
 }
 
 /*
@@ -1605,6 +1612,13 @@ void W_FireGrenade()
 #ifdef BOT_SUPPORT
 	BotsGrenadeSpawned(newmis);
 #endif
+	
+	// we don't want to do newmis stuff, antilag 1 takes care of it for us
+	if (cvar("sv_antilag") == 1)
+	{
+		g_globalvars.newmis = EDICT_TO_PROG(world);
+		newmis = world;
+	}
 }
 
 //=============================================================================
@@ -1838,6 +1852,12 @@ void W_FireSuperSpikes()
 
 	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
+
+	if (cvar("sv_antilag") == 1)
+	{
+		g_globalvars.newmis = EDICT_TO_PROG(world);
+		newmis = world;
+	}
 }
 
 void W_FireSpikes(float ox)
@@ -1898,6 +1918,13 @@ void W_FireSpikes(float ox)
 
 	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
+	
+
+	if (cvar("sv_antilag") == 1)
+	{
+		g_globalvars.newmis = EDICT_TO_PROG(world);
+		newmis = world;
+	}
 }
 
 /*

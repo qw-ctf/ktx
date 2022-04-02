@@ -592,7 +592,32 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 		step_time = 8 / VectorLength(e->s.v.velocity);
 	}
 
+
+
 	float current_time = g_globalvars.time - ms;
+	// newmis reimplementation
+	if (newmis == e)
+	{
+		antilag_lagmove_all_playeronly(owner, (g_globalvars.time - current_time));
+		traceline(PASSVEC3(e->s.v.origin), e->s.v.origin[0] + e->s.v.velocity[0] * 0.05, e->s.v.origin[1] + e->s.v.velocity[1] * 0.05, e->s.v.origin[2] + e->s.v.velocity[2] * 0.05, false, e);
+		trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(g_globalvars.trace_endpos));
+
+		if (g_globalvars.trace_fraction < 1 || g_globalvars.trace_startsolid)
+		{
+			other = PROG_TO_EDICT(g_globalvars.trace_ent);
+			self = e;
+			self->s.v.flags = ((int)self->s.v.flags) | FL_GODMODE;
+			((void(*)())(self->touch))();
+
+			self = oself;
+			antilag_unmove_all(); // emergency antilag cleanup
+			return;
+		}
+	}
+	//
+
+
+	// actual stepping through
 	while (current_time <= g_globalvars.time)
 	{
 		time_corrected = current_time;
