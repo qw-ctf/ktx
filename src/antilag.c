@@ -40,7 +40,7 @@ float Physics_PushEntity(float push_x, float push_y, float push_z, int failonsta
 
 	trap_setorigin(NUM_FOR_EDICT(self), PASSVEC3(g_globalvars.trace_endpos));
 
-	if (g_globalvars.trace_fraction < 1)
+	if (g_globalvars.trace_fraction < 1 || g_globalvars.trace_startsolid)
 	{
 		if (self->s.v.solid >= SOLID_TRIGGER && (!((int)self->s.v.flags & FL_ONGROUND) || (self->s.v.groundentity != g_globalvars.trace_ent)))
 		{
@@ -96,9 +96,9 @@ void Physics_Bounce(float dt)
 	{
 		vec3_t move;
 		VectorScale(self->s.v.velocity, movetime, move);
-		Physics_PushEntity(PASSVEC3(move), true);
+		Physics_PushEntity(PASSVEC3(move), false);
 
-		if (g_globalvars.trace_fraction == 1)
+		if (g_globalvars.trace_fraction == 1 && !g_globalvars.trace_startsolid)
 			break;
 
 		movetime *= 1 - min(1, g_globalvars.trace_fraction);
@@ -711,7 +711,21 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 		step_time = 32 / VectorLength(e->s.v.velocity);
 	}
 
+
+
+
+
 	float current_time = g_globalvars.time - ms;
+	// newmis reimplementation
+	if (newmis == e)
+	{
+		antilag_lagmove_all_playeronly(owner, (g_globalvars.time - current_time));
+		Physics_Bounce(0.05);
+	}
+	//
+
+
+	// actual step through
 	while (current_time < g_globalvars.time)
 	{
 		step_time = bound(0.01, min(step_time, (g_globalvars.time - current_time) - 0.01), 0.05);
@@ -721,6 +735,8 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 		if (self->s.v.nextthink) { self->s.v.nextthink -= step_time; }
 		current_time += step_time;
 	}
+	//
+
 
 	self = oself;
 
