@@ -2289,6 +2289,12 @@ void ghost2scores(gedict_t *g)
 		return;
 	}
 
+	if (isCA())
+	{
+		// Don't show disconnected players in scoreboard in CA.
+		return;
+	}
+
 	if (strneq(g->classname, "ghost"))
 	{
 		return;

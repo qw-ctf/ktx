@@ -82,7 +82,7 @@ qbool CheckRate(gedict_t *p, char *newrate)
 	qbool ret = false;
 	float player_rate, maxrate = 0, minrate = 0;
 
-	// This is used to check a players rate.  If above allowed setting then it kicks em off.
+	// This is used to check a players rate. If above allowed setting then it kicks em off.
 	player_rate = atof(strnull(newrate) ? (newrate = ezinfokey(p, "rate")) : newrate);
 
 	if (strnull(newrate))
@@ -213,7 +213,7 @@ void set_nextmap(char *map)
 
 /*QUAKED info_intermission (1 0.5 0.5) (-16 -16 -16) (16 16 16)
  This is the camera point for the intermission.
- Use mangle instead of angle, so you can set pitch or roll as well as yaw.  'pitch roll yaw'
+ Use mangle instead of angle, so you can set pitch or roll as well as yaw. 'pitch roll yaw'
  */
 void SP_info_intermission()
 {
@@ -758,7 +758,8 @@ void changelevel_touch()
 }
 
 /*QUAKED trigger_changelevel (0.5 0.5 0.5) ? NO_INTERMISSION
- When the player touches this, he gets sent to the map listed in the "map" variable.  Unless the NO_INTERMISSION flag is set, the view will go to the info_intermission spot and display stats.
+ When the player touches this, he gets sent to the map listed in the "map" variable.
+ Unless the NO_INTERMISSION flag is set, the view will go to the info_intermission spot and display stats.
  */
 void SP_trigger_changelevel()
 {
@@ -768,7 +769,7 @@ void SP_trigger_changelevel()
 	}
 
 	// qqshka: yeah, treat k_remove_end_hurt as hint to remove some shit from this level,
-	//         not only hurt trigger
+	//		   not only hurt trigger
 	if (streq("end", mapname) && cvar("k_remove_end_hurt")
 			&& (cvar("k_remove_end_hurt") != 2))
 	{
@@ -789,7 +790,7 @@ void NextLevel()
 	gedict_t *o;
 	char *entityfile;
 
-	if (k_bloodfest)
+	if (k_bloodfest || cvar("k_clan_arena"))
 	{
 		return;
 	}
@@ -971,12 +972,19 @@ void ClientKill()
 		return;
 	}
 
-	/*
-	 if ( isCA() && match_in_progress && ra_match_fight != 2 ) {
-	 G_sprint (self, PRINT_HIGH, "Can't suicide in CA mode while coutdown\n");
-	 return;
-	 }
-	 */
+	if (isCA() && match_in_progress)
+	{
+		if ((ra_match_fight != 2) || ca_round_pause)
+		{
+			G_sprint (self, PRINT_HIGH, "Can't suicide at this time\n");
+
+			return;
+		}
+		else if ((ra_match_fight == 2) && !ca_round_pause)
+		{
+			self->round_deaths = 99;	// No respawning after suicide in wipeout mode
+		}
+	}
 
 	if (isCTF() && (match_in_progress == 2) && ((g_globalvars.time - match_start_time) < 10))
 	{
@@ -1296,7 +1304,7 @@ qbool CanConnect()
 			{
 				if (streq(getname(p), self->netname))
 				{
-					break;  // don't kick, find "ghost" with equal name
+					break; // don't kick, find "ghost" with equal name
 				}
 			}
 
@@ -1309,6 +1317,10 @@ qbool CanConnect()
 				return false; // _can't_ connect
 			}
 		}
+		else if (isCA())
+		{
+			// do nothing here
+		}
 		else if ((isTeam() || isCTF()))
 		{
 			// kick if no ghost or player with team as for self
@@ -1318,7 +1330,7 @@ qbool CanConnect()
 			{
 				if (p != self && streq(getteam(p), t))
 				{
-					break;  // don't kick, find "player" or "ghost" with equal team
+					break; // don't kick, find "player" or "ghost" with equal team
 				}
 			}
 
@@ -1342,7 +1354,7 @@ qbool CanConnect()
 	}
 
 	// don't allow empty team in any case
-	if (tp_num() && strnull(getteam(self)))
+	if (tp_num() && strnull(getteam(self)) && !isCA())
 	{
 		G_sprint(self, 2, "Match in progress,\n"
 					"Set your team before connecting\n"
@@ -1397,38 +1409,54 @@ qbool CanConnect()
 
 		if (p) // found ghost entity
 		{
+			qbool isCa = isCA();
+			qbool teamEqual = streq(getteam(self), getteam(p));
+
 			// check teams only for team mode
-			if ((isTeam() || isCTF()) && strneq(getteam(self), getteam(p)))
+			if ((isTeam() || isCTF()) && !teamEqual && !isCa)
 			{
 				G_sprint(self, 2, "Please join your old team and reconnect\n");
 
 				return false; // _can't_ connect
 			}
-
-			ghostClearScores(p);
-
-			self->ps = p->ps; // restore player stats
-			self->s.v.frags = p->s.v.frags;
-			self->deaths = p->deaths;
-			self->friendly = p->friendly;
-
-			if (isTeam() || isCTF())
+			// In CA, if current team doesn't match old team then just don't restore stats/gamestate
+			// Otherwise restore frags and set ca_ready
+			else if (isCa && !teamEqual)
 			{
-				self->k_teamnum = p->k_teamnum; // we alredy have team in localinfo
-				G_bprint(2, "%s \220%s\221 %s %d %s%s\n", self->netname, getteam(self),
-							redtext("rejoins the game with"), (int)self->s.v.frags,
-							redtext("frag"), redtext(count_s(self->s.v.frags)));
+				// if player's team isn't what it was before, then he will be a "dead" player until the match is over
+				self->ca_ready = 0;
+
+				G_bprint(2, "%s entered the game\n", self->netname);
 			}
 			else
 			{
-				self->k_teamnum = 0; // force check is we have team in localinfo or not below
-				G_bprint(2, "%s %s %d %s%s\n", self->netname, redtext("rejoins the game with"),
-							(int)self->s.v.frags, redtext("frag"),
-							redtext(count_s(self->s.v.frags)));
-			}
+				ghostClearScores(p);
 
-			localcmd("localinfo %d \"\"\n", usrid); // remove ghost in localinfo
-			ent_remove(p); // remove ghost entity
+				self->ps = p->ps; // restore player stats
+				self->s.v.frags = p->s.v.frags;
+				self->deaths = p->deaths;
+				self->friendly = p->friendly;
+
+				self->ca_ready = isCA() ? true : 0; // return to the game if playing clan arena
+
+				if (isTeam() || isCTF())
+				{
+					self->k_teamnum = p->k_teamnum; // we alredy have team in localinfo
+					G_bprint(2, "%s \220%s\221 %s %d %s%s\n", self->netname, getteam(self),
+								redtext("rejoins the game with"), (int)self->s.v.frags,
+								redtext("frag"), redtext(count_s(self->s.v.frags)));
+				}
+				else
+				{
+					self->k_teamnum = 0; // force check is we have team in localinfo or not below
+					G_bprint(2, "%s %s %d %s%s\n", self->netname, redtext("rejoins the game with"),
+								(int)self->s.v.frags, redtext("frag"),
+								redtext(count_s(self->s.v.frags)));
+				}
+
+				localcmd("localinfo %d \"\"\n", usrid); // remove ghost in localinfo
+				ent_remove(p); // remove ghost entity
+			}
 		}
 		else // ghost entity not found
 		{
@@ -1446,7 +1474,11 @@ qbool CanConnect()
 	}
 	else
 	{ // ghost not found (localinfo)
-		if (isTeam() || isCTF())
+		if (isCA())
+		{
+			G_bprint(2, "%s entered the game\n", self->netname);
+		}
+		else if (isTeam() || isCTF())
 		{
 			G_bprint(2, "%s \220%s\221 %s\n", self->netname, getteam(self),
 						redtext("arrives late"));
@@ -1469,7 +1501,7 @@ qbool CanConnect()
 			}
 		}
 
-		if (!self->k_teamnum)  // team not found in localinfo, so put it in
+		if (!self->k_teamnum) // team not found in localinfo, so put it in
 		{
 			tmid++;
 
@@ -1802,7 +1834,7 @@ void PutClientInServer(void)
 
 	self->trackent = 0;
 
-	self->ca_alive = (isCA() ? (ra_match_fight != 2) : true);
+	self->ca_alive = (isCA() ? CA_CheckAlive(self) : true);
 	self->deathtype = dtNONE;
 	self->classname = "player";
 	self->s.v.health = 100;
@@ -2043,7 +2075,7 @@ void PutClientInServer(void)
 		items |= (spot->s.v.ammo_rockets ? IT_ROCKETS : 0);
 		items |= (spot->s.v.ammo_cells ? IT_CELLS : 0);
 
-		// They always get axe & shotgun.  
+		// They always get axe & shotgun.
 		items |= (IT_SHOTGUN | IT_AXE);
 
 		if (!match_in_progress)
@@ -2192,8 +2224,8 @@ void PutClientInServer(void)
 			self->s.v.health = 250;
 
 #ifdef HITBOXCHECK
-			self->s.v.armorvalue   = 30000;
-			self->s.v.health       = 30000;
+			self->s.v.armorvalue = 30000;
+			self->s.v.health = 30000;
 #endif
 
 			items = self->s.v.items;
@@ -2427,7 +2459,6 @@ void CheckRules()
 //============================================================================
 void PlayerDeathThink()
 {
-// gedict_t*    old_self;
 	float forward;
 	float respawn_time;
 
@@ -2507,7 +2538,7 @@ void PlayerJump()
 
 	if ((self->spawn_time + 0.05) > g_globalvars.time)
 	{
-		self->s.v.velocity[2] = -270;  // discard +jump till 50 ms after respawn, like ktpro
+		self->s.v.velocity[2] = -270; // discard +jump till 50 ms after respawn, like ktpro
 		self->s.v.flags = (int)self->s.v.flags & ~FL_JUMPRELEASED;
 
 		return;
@@ -2973,18 +3004,18 @@ void BackFromLag()
 	}
 }
 
-#define S_AXE   ( 1<<0 )
-#define S_SG    ( 1<<1 )
-#define S_SSG   ( 1<<2 )
-#define S_NG    ( 1<<3 )
-#define S_SNG   ( 1<<4 )
-#define S_GL    ( 1<<5 )
-#define S_RL    ( 1<<6 )
-#define S_LG    ( 1<<7 )
+#define S_AXE	( 1<<0 )
+#define S_SG	( 1<<1 )
+#define S_SSG	( 1<<2 )
+#define S_NG	( 1<<3 )
+#define S_SNG	( 1<<4 )
+#define S_GL	( 1<<5 )
+#define S_RL	( 1<<6 )
+#define S_LG	( 1<<7 )
 
-#define S_ALL   ( S_AXE | S_SG | S_SSG | S_NG | S_SNG | S_GL | S_RL | S_LG )
+#define S_ALL	( S_AXE | S_SG | S_SSG | S_NG | S_SNG | S_GL | S_RL | S_LG )
 
-#define S_DEF   ( S_GL | S_RL | S_LG ) /* default */
+#define S_DEF	( S_GL | S_RL | S_LG ) /* default */
 
 void wp_wrap_cat(char *s, char *buf, int size)
 {
@@ -3019,8 +3050,8 @@ void Print_Wp_Stats()
 	float ng = wps & S_NG ? 100.0 * e->ps.wpn[wpNG].hits / max(1, e->ps.wpn[wpNG].attacks) : 0;
 	float sng = wps & S_SNG ? 100.0 * e->ps.wpn[wpSNG].hits / max(1, e->ps.wpn[wpSNG].attacks) : 0;
 #if 0 /* percentage */
-	float gl  = wps & S_GL  ? 100.0 * e->ps.wpn[wpGL].hits  / max(1, e->ps.wpn[wpGL].attacks) : 0;
-	float rl  = wps & S_RL  ? 100.0 * e->ps.wpn[wpRL].hits  / max(1, e->ps.wpn[wpRL].attacks) : 0;
+	float gl = wps & S_GL ? 100.0 * e->ps.wpn[wpGL].hits / max(1, e->ps.wpn[wpGL].attacks) : 0;
+	float rl = wps & S_RL ? 100.0 * e->ps.wpn[wpRL].hits / max(1, e->ps.wpn[wpRL].attacks) : 0;
 #else /* just count of direct hits */
 	float gl = wps & S_GL ? e->ps.wpn[wpGL].hits : 0;
 	float rl = wps & S_RL ? max(0.001, e->ps.wpn[wpRL].hits) : 0;
@@ -3711,6 +3742,8 @@ void PlayerPreThink()
 
 	}
 
+	CA_player_pre_think();
+
 	race_player_pre_think();
 
 // brokenankle included here
@@ -4109,7 +4142,7 @@ void mv_record();
 void CheckStuffRune();
 
 // ====================================
-// {  new weapon stats WS_
+// { new weapon stats WS_
 void WS_Mark(gedict_t *p, weaponName_t wp)
 {
 	if ((wp <= wpNONE) || (wp >= wpMAX))
@@ -4200,7 +4233,7 @@ void WS_CheckUpdate(gedict_t *p)
 			continue; // client not interesting in new weapon stats
 		}
 
-		trackers[trackers_cnt++] = s; //  remember this spec
+		trackers[trackers_cnt++] = s; // remember this spec
 	}
 
 	for (i = wpNONE + 1; i < wpMAX; i++)
@@ -4267,7 +4300,7 @@ void CheckLand()
 			{
 				if (!get_fallbunny())
 				{
-					self->brokenankle = 1;  // Yes we have just broken it
+					self->brokenankle = 1; // Yes we have just broken it
 				}
 			}
 
@@ -4408,6 +4441,10 @@ void PlayerPostThink()
 				self->s.v.ammo_rockets = 100 + (int)(velocity_vert_abs) % 10000 / 100;
 				self->s.v.ammo_cells = 100 + (int)(velocity_vert_abs) % 100;
 			}
+			else if (isCA())
+			{
+				// do nothing
+			}
 			else
 			{
 				self->s.v.armorvalue = 1000;
@@ -4469,6 +4506,11 @@ void SendTeamInfo(gedict_t *t)
 		if (t->trackent && t->trackent == NUM_FOR_EDICT(p))
 		{
 			continue; // we pseudo speccing such player, no point to send info about him
+		}
+
+		if (isCA() && !ISLIVE(p))
+		{
+			continue; // do not send if player is dead in clan arena mode
 		}
 
 		if (strnull(nick = ezinfokey(p, "k_nick"))) // get nick, if any, do not send name, client can guess it too
@@ -4646,11 +4688,11 @@ void StatsHandler(gedict_t *targ, gedict_t *attacker)
 
 		// FIXME: We should want to consider other times when control switches.
 		// Some ideas:
-		//   - if one player gets a much larger stack (Mega + RA) we can probably assume
-		//     they have taken control. This could be detected on Mega / RA pickup.
-		//   - if one player takes RA multiple times in a row, they may indicate they
-		//     have won control but not yet killed the opponent, or opponent is hiding.
-		//     This could be detected on RA pickup.
+		//	- if one player gets a much larger stack (Mega + RA) we can probably assume
+		//	  they have taken control. This could be detected on Mega / RA pickup.
+		//	- if one player takes RA multiple times in a row, they may indicate they
+		//	  have won control but not yet killed the opponent, or opponent is hiding.
+		//	This could be detected on RA pickup.
 	}
 
 	if (attacker->ct == ctPlayer)
@@ -4891,7 +4933,7 @@ void ClientObituary(gedict_t *targ, gedict_t *attacker)
 
 	refresh_plus_scores();
 
-	//ZOID 12-13-96: self.team doesn't work in QW.  Use keys
+	//ZOID 12-13-96: self.team doesn't work in QW. Use keys
 	attackerteam = getteam(attacker);
 	targteam = getteam(targ);
 
@@ -4941,6 +4983,11 @@ void ClientObituary(gedict_t *targ, gedict_t *attacker)
 		return;
 	}
 
+	if (isCA())
+	{
+		CA_ClientObituary(targ, attacker);
+	}
+
 	if (k_bloodfest && !targ->ready)
 	{
 		return; // someone connecting during round of bloodfest and got pseudo death.
@@ -4986,12 +5033,12 @@ void ClientObituary(gedict_t *targ, gedict_t *attacker)
 	}
 // }
 
-	if (attacker->ct == ctPlayer)  // so, inside this "if" targ and attacker is players
+	if (attacker->ct == ctPlayer) // so, inside this "if" targ and attacker is players
 	{
 		if (targ == attacker)
 		{
 			// killed self
-			if (!isHoonyModeDuel())
+			if (!isHoonyModeDuel() && !isCA())
 			{
 				targ->s.v.frags -= (dtSUICIDE == targ->deathtype ? 2 : 1);
 			}
@@ -5077,7 +5124,7 @@ void ClientObituary(gedict_t *targ, gedict_t *attacker)
 				if ((g_globalvars.time - match_start_time) > 1)
 				{
 					attacker->s.v.frags -= 1;
-					logfrag(attacker, attacker); //ZOID 12-13-96:  killing a teammate logs as suicide
+					logfrag(attacker, attacker); //ZOID 12-13-96: killing a teammate logs as suicide
 				}
 			}
 
@@ -5145,6 +5192,12 @@ void ClientObituary(gedict_t *targ, gedict_t *attacker)
 			if (!cvar("k_dmgfrags") && !cvar("k_midair") && !lgc_enabled())
 			{
 				// add frag only if not a case of k_dmgfrags
+				attacker->s.v.frags += 1;
+			}
+
+			if (isCA())
+			{
+				//Clan Arena give points for frags even with k_dmgfrags
 				attacker->s.v.frags += 1;
 			}
 
@@ -5406,7 +5459,7 @@ void ClientObituary(gedict_t *targ, gedict_t *attacker)
 	{
 		if (!isHoonyModeDuel())
 		{
-			targ->s.v.frags -= 1;            // killed self
+			targ->s.v.frags -= 1; // killed self
 		}
 
 		logfrag(targ, targ);

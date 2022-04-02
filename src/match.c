@@ -310,6 +310,11 @@ void EndMatch(float skip_log)
 		cvar_fset("sv_spectalk", 1);
 	}
 
+	if (isCA())
+	{
+		CA_MatchBreak();
+	}
+
 	if (isHoonyModeAny())
 	{
 		G_bprint(2, "The point is over\n");
@@ -354,7 +359,10 @@ void EndMatch(float skip_log)
 
 		if (is_real_match_end)
 		{
-			MatchEndStats();
+			if (!isCA())
+			{
+				MatchEndStats();
+			}
 
 			lastscore_add(); // save game result somewhere, so we can show it later
 		}
@@ -439,7 +447,7 @@ void EndMatch(float skip_log)
 	}
 
 	// allow ready/break in bloodfest without map reloading.
-	if (k_bloodfest)
+	if (k_bloodfest || isCA())
 	{
 		match_over = 0;
 	}
@@ -689,11 +697,15 @@ void TimerThink()
 			return;
 		}
 
-		G_bprint(2, "\220%s\221 minute%s remaining\n", dig3(self->cnt), count_s(self->cnt));
+		// don't show match time reminders in clan arena
+		if (!isCA())
+		{
+			G_bprint(2, "\220%s\221 minute%s remaining\n", dig3(self->cnt), count_s(self->cnt));
+		}
 
 		self->s.v.nextthink = g_globalvars.time + 1;
 
-		if (k_showscores)
+		if (k_showscores && !isCA())
 		{
 			if ((current_umode < 11) || (current_umode > 13))
 			{
@@ -946,13 +958,13 @@ static void SM_PrepareClients()
 			continue;
 		}
 
-		// ignore  k_respawn() in case of CA
+		// ignore k_respawn() in case of CA
 		if (isCA())
 		{
 			continue;
 		}
 
-		// ignore  k_respawn() in case of race mode
+		// ignore k_respawn() in case of race mode
 		if (isRACE())
 		{
 			continue;
@@ -1067,7 +1079,7 @@ void SM_PrepareHostname()
 	char *team1 = cvar_string("_k_team1");
 	char *team2 = cvar_string("_k_team2");
 
-	cvar_set("_k_host", cvar_string("hostname"));  // save host name at match start
+	cvar_set("_k_host", cvar_string("hostname")); // save host name at match start
 
 	if (k_showscores && !strnull(team1) && !strnull(team2))
 	{
@@ -1174,8 +1186,8 @@ void StartMatch()
 		localcmd("serverinfo fpd %d\n", fpd);
 	}
 
-	self->k_teamnum = g_globalvars.time + 3;  //dirty i know, but why waste space?
-											  // FIXME: waste space, but be clean
+	self->k_teamnum = g_globalvars.time + 3; //dirty i know, but why waste space?
+											 // FIXME: waste space, but be clean
 
 	if (isHoonyModeAny() && HM_timelimit() > 0)
 	{
@@ -1324,22 +1336,22 @@ void PrintCountdown(int seconds)
 //
 // EQL semifinal
 //
-// Deathmatch  x
-// Mode		  D u e l | T e a m | F F A | C O O P | BLOODFST | C T F | RA | CA
-// Spawnmodel KTX | bla bla bla // optional
-// Antilag    On|Off
-// NoItems    On // optional
-// Midair     On // optional
-// Instagib   On // optional
-// Yawnmode   On // optional
-// Airstep    On // optional
-// TmOverlay  On // optional
-// Teamplay    x
-// Timelimit  xx
-// Fraglimit xxx
-// Overtime   xx		Overtime printout, supports sudden death display
-// Powerups   On|Off|QPRS
-// Dmgfrags   On // optional
+// Deathmatch	x
+// Mode			D u e l | T e a m | F F A | C O O P | BLOODFST | C T F | RA | CA
+// Spawnmodel	KTX | bla bla bla // optional
+// Antilag		On|Off
+// NoItems		On // optional
+// Midair		On // optional
+// Instagib		On // optional
+// Yawnmode		On // optional
+// Airstep		On // optional
+// TmOverlay	On // optional
+// Teamplay		x
+// Timelimit	xx
+// Fraglimit	xxx
+// Overtime		xx		Overtime printout, supports sudden death display
+// Powerups		On|Off|QPRS
+// Dmgfrags		On // optional
 // Noweapon
 
 // Handicap in use // optional
@@ -1387,7 +1399,14 @@ void PrintCountdown(int seconds)
 	}
 	else if (isCA())
 	{
-		mode = redtext("CA");
+		if (cvar("k_clan_arena") == 2)
+		{
+			mode = redtext("Wipeout");	
+		}
+		else 
+		{
+			mode = redtext("CA");
+		}
 	}
 	else if (isHoonyModeDuel())
 	{
@@ -1968,8 +1987,10 @@ char* CompilateDemoName()
 {
 	static char demoname[60];
 	char date[128], *fmt;
+	char teams[MAX_CLIENTS][MAX_TEAM_NAME];
 
 	int i;
+	int players;
 	gedict_t *p;
 	char *name, *vs;
 
@@ -1978,9 +1999,34 @@ char* CompilateDemoName()
 	{
 		strlcat(demoname, va("ra_%d", (int)CountPlayers()), sizeof(demoname));
 	}
+	else if (isCA())
+	{
+		if (cvar("k_clan_arena") == 1)
+		{
+			strlcat(demoname, "ca", sizeof(demoname));
+		}
+		else
+		{
+			strlcat(demoname, "wipeout", sizeof(demoname));
+		}
+
+		getteams(teams);
+		
+		for (vs = "_", i = 0; i < MAX_CLIENTS; i++)
+		{
+			if (strnull(teams[i]))
+			{
+				break;
+			}
+
+			strlcat(demoname, vs, sizeof(demoname));
+			strlcat(demoname, teams[i], sizeof(demoname));
+			vs = "_vs_";
+		}
+	}
 	else if (isRACE() && !race_match_mode())
 	{
-		int players = 0;
+		players = 0;
 
 		strlcat(demoname, "race", sizeof(demoname));
 		for (vs = "_", p = world; (p = find_plr(p));)
@@ -2149,7 +2195,7 @@ void StartDemoRecord()
 		{
 			if (!strnull(cvar_string("serverdemo")))
 			{
-				localcmd("sv_democancel\n");  // demo is recording, cancel before new one
+				localcmd("sv_democancel\n"); // demo is recording, cancel before new one
 			}
 
 			demoname = CompilateDemoName();
@@ -2208,7 +2254,7 @@ void StartTimer()
 	timer->classname = "timer";
 	timer->cnt = 0;
 
-	timer->cnt2 = max(3, (int)cvar("k_count"));  // at the least we want a 3 second countdown
+	timer->cnt2 = max(3, (int)cvar("k_count")); // at the least we want a 3 second countdown
 
 	if (isHoonyModeDuel() && (HM_current_point() > 0))
 	{
@@ -2322,7 +2368,7 @@ void StopTimer(int removeDemo)
 	if (removeDemo && (match_can_cancel_demo()) && (race_can_cancel_demo())
 			&& !strnull(cvar_string("serverdemo")))
 	{
-		localcmd("sv_democancel\n");  // demo is recording and must be removed, do it
+		localcmd("sv_democancel\n"); // demo is recording and must be removed, do it
 	}
 
 	match_start_time = 0;
@@ -2753,6 +2799,13 @@ void PlayerBreak()
 		return;
 	}
 
+	if (isCA() && (match_in_progress == 2) && !self->ca_ready)
+	{
+		G_sprint(self, 2, "You must be in the game to vote\n");
+
+		return;
+	}
+
 	if (k_matchLess && !k_bloodfest)
 	{
 		// do not allow break/next_map commands in some cases.
@@ -2775,7 +2828,7 @@ void PlayerBreak()
 
 	if (!k_matchLess || k_bloodfest)
 	{
-		// try stop countdown.  (countdown between hoony-mode points can't be stopped, treat as standard break request).
+		// try stop countdown. (countdown between hoony-mode points can't be stopped, treat as standard break request).
 		qbool can_stop_hoonymode = (!isHoonyModeAny() || HM_current_point() == 0);
 
 		if (match_in_progress == 1 && can_stop_hoonymode)
