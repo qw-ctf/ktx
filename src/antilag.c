@@ -632,7 +632,7 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 
 		trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(g_globalvars.trace_endpos));
 
-		if (g_globalvars.trace_fraction < 1)
+		if (g_globalvars.trace_fraction < 1 || g_globalvars.trace_startsolid)
 		{
 			//if (g_globalvars.trace_ent)
 			//{
@@ -646,6 +646,7 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 
 		current_time += step_time;
 	}
+	//
 
 	self = oself;
 
