@@ -1006,6 +1006,7 @@ void T_InstaKickback()
 	ent_remove(self);
 }
 
+extern int dmg_is_splash;
 void T_MissileExplode_Antilag()
 {
 	gedict_t *own = PROG_TO_EDICT(self->s.v.owner);
@@ -1030,6 +1031,21 @@ void T_MissileExplode_Antilag()
 		}
 	}
 
+	if (!CanDamage(own, self))
+	{
+		ent_remove(self);
+		return;
+	}
+
+	vec3_t hold_org;
+	VectorCopy(self->s.v.origin, hold_org);
+
+	if ((int)self->s.v.flags & FL_NOTARGET)
+	{
+		VectorAdd(own->s.v.origin, self->old_vel, self->s.v.origin);
+	}
+
+
 	// this is awful, but it's the easiest way to exactly replicate the crappy findradius cropping of the splash radius
 	gedict_t *head;
 	head = trap_findradius(world, self->s.v.origin, 160);
@@ -1038,7 +1054,38 @@ void T_MissileExplode_Antilag()
 	{
 		if (head == own)
 		{
-			T_RadiusDamageApply(self, own, head, 120, dtRL);
+			int damage = 120;
+			float points;
+			vec3_t org;
+
+			org[0] = self->s.v.origin[0]
+				- (head->s.v.origin[0] + (head->s.v.mins[0] + head->s.v.maxs[0]) * 0.5);
+			org[1] = self->s.v.origin[1]
+				- (head->s.v.origin[1] + (head->s.v.mins[1] + head->s.v.maxs[1]) * 0.5);
+			org[2] = self->s.v.origin[2]
+				- (head->s.v.origin[2] + (head->s.v.mins[2] + head->s.v.maxs[2]) * 0.5);
+			points = 0.5 * vlen(org);
+
+			if (points < 0)
+			{
+				points = 0;
+			}
+
+			points = damage - points;
+			points = points * 0.5;
+
+			if (points > 0)
+			{
+				// make sure knockback is the right direction, even if it's not accurate to damage.
+				// this is a hack to ensure self damage on rockets against players is accurate
+				VectorCopy(self->s.v.origin, hold_org);
+
+				head->deathtype = dtRL;
+				dmg_is_splash = 1; // mark damage as splash
+				T_Damage(head, self, own, points);
+				dmg_is_splash = 0; // unmark splash
+			}
+			break;
 		}
 
 		head = trap_findradius(head, self->s.v.origin, 160);
@@ -1121,8 +1168,20 @@ void T_MissileTouch()
 
 		float delay;
 
-		if ((int)self->s.v.flags & FL_GODMODE)
+		local_explosion->gravity = g_globalvars.time - time_corrected;
+
+		if ((int)self->s.v.flags & FL_GODMODE) // exploded within reconciliation range
 		{
+			if (other->s.v.solid == SOLID_SLIDEBOX)
+			{
+				antilag_t *list = PROG_TO_EDICT(self->s.v.owner)->antilag_data;
+				if (list != NULL) // should always be true
+				{
+					VectorSubtract(list->rewind_origin[antilag_getseek(list, local_explosion->gravity)], self->s.v.origin, local_explosion->old_vel);
+					self->s.v.flags = ((int)self->s.v.flags) | FL_NOTARGET;
+				}
+			}
+
 			delay = (vlen(diff) / vlen(self->s.v.velocity));
 			local_explosion->s.v.flags = (int)self->s.v.flags | FL_GODMODE;
 			delay -= 0.038;
@@ -1138,8 +1197,6 @@ void T_MissileTouch()
 			delay -= 0.038;
 			//delay = self->s.v.health;
 		}
-
-		local_explosion->gravity = g_globalvars.time - time_corrected;
 
 		if (delay > 0.013)
 		{

@@ -450,7 +450,7 @@ char* make_dots(char *dots, size_t dots_len, int cmd_max_len, char *cmd);
 #define PRDFL_MIDAIR	1
 #define PRDFL_COILGUN	2
 #define PRDFL_FORCEOFF	255
-extern float		time_corrected;
+extern float	time_corrected;
 void			antilag_lagmove(antilag_t *data, float goal_time);
 void			antilag_lagmove_all(gedict_t *e, float goal_time);
 void			antilag_lagmove_all_hitscan(gedict_t *e);
@@ -458,6 +458,7 @@ void			antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e);
 void			antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e);
 void			antilag_unmove_specific(gedict_t *ent);
 void			antilag_unmove_all(void);
+int				antilag_getseek(antilag_t *data, float ms);
 antilag_t		*antilag_create_player(gedict_t *e);
 antilag_t		*antilag_create_world(gedict_t *e);
 void			antilag_delete_player(gedict_t *e);

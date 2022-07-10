@@ -429,8 +429,7 @@ void MidairDamageBonus(gedict_t *attacker, gedict_t *targ, float midheight)
 
 gedict_t *damage_attacker, *damage_inflictor;
 
-static int dmg_is_splash = 0;
-
+int dmg_is_splash;
 void T_Damage(gedict_t *targ, gedict_t *inflictor, gedict_t *attacker, float damage)
 {
 	vec3_t dir;
