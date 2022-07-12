@@ -300,10 +300,57 @@ char* GetRuneSpawnName()
 	return runespawn;
 }
 
+// try to find a unique spawn position for a rune given the NULL-terminated
+// list of other runes
+gedict_t* UniqueRuneSpawn(int rune_type, ...)
+{
+	char *spawnname;
+	gedict_t *other, *e;
+	va_list args;
+	int i, nspawns;
+	qbool unique;
+
+	spawnname = GetRuneSpawnName();
+
+	for (e = world, nspawns = 0; (e = ez_find(e, spawnname)); nspawns++);
+
+	for (i = 0; i < nspawns; i++)
+	{
+		self = SelectSpawnPoint(spawnname);
+
+		unique = true;
+
+		va_start(args, rune_type);
+		while ((other = va_arg(args, gedict_t *)) != NULL)
+		{
+			if (self == other)
+			{
+				unique = false;
+				break;
+			}
+		}
+		va_end(args);
+
+		if (unique)
+		{
+			DoDropRune(rune_type, true);
+			break;
+		}
+	}
+
+	// Unable to find a unique spawn, drop anyway
+	if (i == nspawns)
+	{
+		DoDropRune(rune_type, true);
+	}
+
+    return self;
+}
+
 // spawn/remove runes
 void SpawnRunes(qbool yes)
 {
-	gedict_t *oself, *e;
+	gedict_t *oself, *e, *res, *str, *hst;
 
 	for (e = world; (e = find(e, FOFCLSN, "rune"));)
 	{
@@ -317,14 +364,10 @@ void SpawnRunes(qbool yes)
 
 	oself = self;
 
-	self = SelectSpawnPoint(GetRuneSpawnName());
-	DoDropRune( CTF_RUNE_RES, true);
-	self = SelectSpawnPoint(GetRuneSpawnName());
-	DoDropRune( CTF_RUNE_STR, true);
-	self = SelectSpawnPoint(GetRuneSpawnName());
-	DoDropRune( CTF_RUNE_HST, true);
-	self = SelectSpawnPoint(GetRuneSpawnName());
-	DoDropRune( CTF_RUNE_RGN, true);
+	res = UniqueRuneSpawn(CTF_RUNE_RES, NULL);
+	str = UniqueRuneSpawn(CTF_RUNE_STR, res, NULL);
+	hst = UniqueRuneSpawn(CTF_RUNE_HST, res, str, NULL);
+	UniqueRuneSpawn(CTF_RUNE_RGN, res, str, hst, NULL);
 
 	self = oself;
 }
