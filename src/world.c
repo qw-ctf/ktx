@@ -919,6 +919,7 @@ void FirstFrame()
 	RegisterCvar("k_ctf_hook");
 	RegisterCvar("k_ctf_cr_hook"); // toggle for clan-ring style hook
 	RegisterCvar("k_ctf_runes");
+    RegisterCvar("k_ctf_rune_bounce");
 	RegisterCvarEx("k_ctf_rune_power_str", "2.0");
 	RegisterCvarEx("k_ctf_rune_power_res", "2.0");
 	RegisterCvarEx("k_ctf_rune_power_rgn", "2.0");
