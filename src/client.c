@@ -1866,6 +1866,9 @@ void PutClientInServer(void)
 // brokenankle
 	self->brokenankle = 0;
 
+// antilag
+	antilag_clearstates(self->antilag_data); // clear antilag states, so we don't get shot at our pre-respawn location
+
 // ctf
 	self->on_hook = false;
 	self->hook_out = false;

@@ -136,20 +136,38 @@ void Physics_Bounce(float dt)
 	}
 }
 
+
+void antilag_addflags(gedict_t *e, antilag_t *antilag, byte flags)
+{
+	for (int i = 0; i < ANTILAG_MAXSTATES; i++)
+	{
+		antilag->rewind_frameflags[i] |= flags;
+	}
+}
+
+
+void antilag_clearstates(antilag_t *antilag)
+{
+	antilag->rewind_seek = 0;
+	for (int i = 0; i < ANTILAG_MAXSTATES; i++)
+	{
+		antilag->rewind_time[i] = 0;
+	}
+}
+
+
 void antilag_log(gedict_t *e, antilag_t *antilag)
 {
 	// stop extremely fast logging
 	if (g_globalvars.time - antilag->rewind_time[antilag->rewind_seek] < 0.01)
 		return;
 
-	antilag->rewind_seek++;
-
-	if (antilag->rewind_seek >= ANTILAG_MAXSTATES)
-		antilag->rewind_seek = 0;
+	antilag->rewind_seek = (antilag->rewind_seek + 1) & ANTILAG_MASK;
 
 	VectorCopy(e->s.v.origin, antilag->rewind_origin[antilag->rewind_seek]);
 	VectorCopy(e->s.v.velocity, antilag->rewind_velocity[antilag->rewind_seek]);
 	antilag->rewind_time[antilag->rewind_seek] = g_globalvars.time;
+	antilag->rewind_frameflags[antilag->rewind_seek] = 0;
 
 	if ((int) e->s.v.flags & FL_ONGROUND)
 		antilag->rewind_platform_edict[antilag->rewind_seek] = e->s.v.groundentity;
@@ -250,34 +268,34 @@ void antilag_lagmove(antilag_t *data, float goal_time)
 
 	//don't rewind past spawns
 	goal_time = max(goal_time, data->owner->spawn_time);
-	
-	int no_xerp = true;
-	if (data->owner->client_lastupdated > 0)
+
+	qbool xerp = false;
+	if (data->owner->client_lastupdated > 0 && goal_time > data->owner->client_lastupdated)
 	{
-		if (goal_time > data->owner->client_lastupdated)
-			no_xerp = false;
+		xerp = true;
 	}
 
-	if (no_xerp) // this should be true unless client is stuttering a lot
+	if (xerp) // we need to extrapolate to make up for bad connection or extremely low ping
+	{
+		VectorMA(data->owner->s.v.origin, min(goal_time - data->owner->client_lastupdated, ANTILAG_MAX_XERP), data->owner->s.v.velocity, lerp_origin);
+	}
+	else // we do regular rewind
 	{
 		int old_seek = data->rewind_seek;
-		int seek = data->rewind_seek - 1;
-		if (seek < 0)
-			seek = ANTILAG_MAXSTATES - 1;
+		int seek = (data->rewind_seek - 1) & ANTILAG_MASK;
 
-		float seek_time = data->rewind_time[seek];
-		while (seek != data->rewind_seek && seek_time > goal_time)
+		while (seek != data->rewind_seek && data->rewind_time[seek] > goal_time)
 		{
 			old_seek = seek;
-			seek--;
-			if (seek < 0)
-				seek = ANTILAG_MAXSTATES - 1;
-			seek_time = data->rewind_time[seek];
+			seek = (seek - 1) & ANTILAG_MASK;
 		}
 
 		float under_time = data->rewind_time[old_seek];
 		float over_time = data->rewind_time[seek];
 		float frac = (goal_time - over_time) / (under_time - over_time);
+
+		if (over_time == 0)
+			frac = 1;
 
 		if (frac <= 1)
 		{
@@ -289,6 +307,7 @@ void antilag_lagmove(antilag_t *data, float goal_time)
 
 			VectorScale(diff, frac, diff);
 			VectorAdd(data->rewind_origin[seek], diff, lerp_origin);
+			data->state_flags |= data->rewind_frameflags[seek];
 		}
 		else
 		{
@@ -303,12 +322,9 @@ void antilag_lagmove(antilag_t *data, float goal_time)
 
 			VectorScale(diff, frac, diff);
 			VectorAdd(data->rewind_origin[data->rewind_seek], diff, lerp_origin);
+			data->state_flags |= data->rewind_frameflags[data->rewind_seek];
 			seek = data->rewind_seek;
 		}
-	}
-	else // we need to extrapolate to make up for bad connection
-	{
-		VectorMA(data->owner->s.v.origin, min(goal_time - data->owner->client_lastupdated, ANTILAG_MAX_XERP), data->owner->s.v.velocity, lerp_origin);
 	}
 
 	trap_setorigin(NUM_FOR_EDICT(owner), PASSVEC3(lerp_origin));
@@ -317,18 +333,11 @@ void antilag_lagmove(antilag_t *data, float goal_time)
 void antilag_getorigin(antilag_t *data, float goal_time)
 {
 	int old_seek = data->rewind_seek;
-	int seek = data->rewind_seek - 1;
-	if (seek < 0)
-		seek = ANTILAG_MAXSTATES - 1;
-
-	float seek_time = data->rewind_time[seek];
-	while (seek != data->rewind_seek && seek_time > goal_time)
+	int seek = (data->rewind_seek - 1) & ANTILAG_MASK;
+	while (seek != data->rewind_seek && data->rewind_time[seek] > goal_time)
 	{
 		old_seek = seek;
-		seek--;
-		if (seek < 0)
-			seek = ANTILAG_MAXSTATES - 1;
-		seek_time = data->rewind_time[seek];
+		seek = (seek - 1) & ANTILAG_MASK;
 	}
 
 	float under_time = data->rewind_time[old_seek];
@@ -362,17 +371,10 @@ int antilag_getseek(antilag_t *data, float ms)
 {
 	float goal_time = g_globalvars.time - ms;
 
-	int seek = data->rewind_seek - 1;
-	if (seek < 0)
-		seek = ANTILAG_MAXSTATES - 1;
-
-	float seek_time = data->rewind_time[seek];
-	while (seek != data->rewind_seek && seek_time > goal_time)
+	int seek = (data->rewind_seek - 1) & ANTILAG_MASK;
+	while (seek != data->rewind_seek && data->rewind_time[seek] > goal_time)
 	{
-		seek--;
-		if (seek < 0)
-			seek = ANTILAG_MAXSTATES - 1;
-		seek_time = data->rewind_time[seek];
+		seek = (seek - 1) & ANTILAG_MASK;
 	}
 
 	return seek;
@@ -389,8 +391,12 @@ void antilag_lagmove_all(gedict_t *e, float ms)
 		if (list->owner->s.v.health <= 0)
 			continue;
 
-		VectorCopy(list->owner->s.v.origin, list->held_origin);
-		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
+		if (!(list->state_flags & ANTILAG_FL_REWOUND))
+		{
+			VectorCopy(list->owner->s.v.origin, list->held_origin);
+			VectorCopy(list->owner->s.v.velocity, list->held_velocity);
+			list->state_flags = ANTILAG_FL_REWOUND;
+		}
 
 		if (list->owner == e)
 		{
@@ -419,8 +425,13 @@ void antilag_lagmove_all(gedict_t *e, float ms)
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
-		VectorCopy(list->owner->s.v.origin, list->held_origin);
-		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
+		if (!(list->state_flags & ANTILAG_FL_REWOUND))
+		{
+			VectorCopy(list->owner->s.v.origin, list->held_origin);
+			VectorCopy(list->owner->s.v.velocity, list->held_velocity);
+			list->state_flags = ANTILAG_FL_REWOUND;
+		}
+
 		antilag_lagmove(list, rewind_time);
 	}
 }
@@ -433,7 +444,7 @@ void antilag_lagmove_all_playeronly(gedict_t *e, float ms)
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
 	{
-		if (list->owner->s.v.health <= 0)
+		if (!(list->state_flags & ANTILAG_FL_REWOUND)) // we only move if the player is declared as rewound, so we know holds are set properly.
 			continue;
 
 		if (list->owner == e)
@@ -451,7 +462,7 @@ void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
 	{
-		if (list->owner->s.v.health <= 0)
+		if (!(list->state_flags & ANTILAG_FL_REWOUND)) // we only move if the player is declared as rewound, so we know holds are set properly.
 			continue;
 
 		if (list->owner == e)
@@ -484,19 +495,43 @@ void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
+		if (!(list->state_flags & ANTILAG_FL_REWOUND))
+			continue;
+
 		antilag_lagmove(list, rewind_time);
 	}
 }
 
 void antilag_unmove_specific(gedict_t *ent)
 {
+	if (!(ent->antilag_data->state_flags & ANTILAG_FL_REWOUND)) // make sure holds are set properly and this isn't an erroneous rewind call.
+		return;
+
+	/*
+	// Reki Jul 23, 2022: we just do this in t_damage, since we only rewind for traceline check on hitscan weapons
+	if (ent->antilag_data->state_flags & ANTILAG_FL_KNOCKBACKPROTECT) 
+		VectorCopy(ent->antilag_data->held_velocity, ent->s.v.velocity);
+	*/
+
+	trap_setorigin(NUM_FOR_EDICT(ent), PASSVEC3(ent->antilag_data->held_origin));
+	ent->antilag_data->state_flags &= ~ANTILAG_FL_REWOUND;
+}
+
+void antilag_clearflags_all(void)
+{
 	if (cvar("sv_antilag") != 1)
 		return;
 
-	if (time_corrected >= g_globalvars.time)
-		return;
+	antilag_t *list;
+	for (list = antilag_list_players; list != NULL; list = list->next)
+	{
+		list->state_flags = 0;
+	}
 
-	trap_setorigin(NUM_FOR_EDICT(ent), PASSVEC3(ent->antilag_data->held_origin));
+	for (list = antilag_list_world; list != NULL; list = list->next)
+	{
+		list->state_flags = 0;
+	}
 }
 
 void antilag_unmove_all(void)
@@ -504,20 +539,15 @@ void antilag_unmove_all(void)
 	if (cvar("sv_antilag") != 1)
 		return;
 
-	time_corrected = g_globalvars.time;
-
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
 	{
-		if (list->owner->s.v.health <= 0)
-			continue;
-
-		trap_setorigin(NUM_FOR_EDICT(list->owner), PASSVEC3(list->held_origin));
+		antilag_unmove_specific(list->owner);
 	}
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
-		trap_setorigin(NUM_FOR_EDICT(list->owner), PASSVEC3(list->held_origin));
+		antilag_unmove_specific(list->owner);
 	}
 }
 
@@ -556,15 +586,14 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
 	{
-		if (list->owner->s.v.health <= 0)
-			continue;
-
+		list->state_flags = ANTILAG_FL_REWOUND;
 		VectorCopy(list->owner->s.v.origin, list->held_origin);
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
 	}
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
+		list->state_flags = ANTILAG_FL_REWOUND;
 		VectorCopy(list->owner->s.v.origin, list->held_origin);
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
 	}
@@ -678,12 +707,14 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 		if (list->owner->s.v.health <= 0)
 			continue;
 
+		list->state_flags = ANTILAG_FL_REWOUND;
 		VectorCopy(list->owner->s.v.origin, list->held_origin);
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
 	}
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
+		list->state_flags = ANTILAG_FL_REWOUND;
 		VectorCopy(list->owner->s.v.origin, list->held_origin);
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
 	}

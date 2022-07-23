@@ -456,13 +456,15 @@ void			antilag_lagmove_all(gedict_t *e, float goal_time);
 void			antilag_lagmove_all_hitscan(gedict_t *e);
 void			antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e);
 void			antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e);
-void			antilag_unmove_specific(gedict_t *ent);
 void			antilag_unmove_all(void);
+void			antilag_clearflags_all(void);
 int				antilag_getseek(antilag_t *data, float ms);
 antilag_t		*antilag_create_player(gedict_t *e);
 antilag_t		*antilag_create_world(gedict_t *e);
 void			antilag_delete_player(gedict_t *e);
 void			antilag_delete_world(gedict_t *e);
+void			antilag_clearstates(antilag_t *antilag);
+void			antilag_addflags(gedict_t *e, antilag_t *antilag, byte flags);
 void			antilag_log(gedict_t *e, antilag_t *antilag);
 
 

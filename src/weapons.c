@@ -140,11 +140,9 @@ void W_FireAxe()
 	//source = self->s.v.origin + '0 0 16';
 
 	traceline(PASSVEC3(source), PASSVEC3(dest), false, self);
-	if (g_globalvars.trace_fraction == 1.0)
-	{
-		antilag_unmove_all();
-		return;
-	}
+
+	antilag_unmove_all();
+
 
 	VectorScale(g_globalvars.v_forward, 4, org);
 	VectorSubtract(g_globalvars.trace_endpos, org, org);
@@ -201,7 +199,7 @@ void W_FireAxe()
 		trap_multicast(PASSVEC3(org), MULTICAST_PVS);
 	}
 
-	antilag_unmove_all();
+	antilag_clearflags_all();
 }
 
 //============================================================================
@@ -484,7 +482,6 @@ void FireInstaBullet(vec3_t dir, deathType_t deathtype)
 	int depth, solid;
 	float fraction;
 	gedict_t *ignore;
-	qbool do_antilag = (self->ct == ctPlayer); // hacky check
 
 	if (cvar("k_cg_kb"))
 	{
@@ -777,7 +774,7 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 		shotcount = shotcount - 1;
 	}
 
-	if (do_antilag)
+	if (do_antilag) // unmove for proper knockback calculation
 		antilag_unmove_all();
 
 	ApplyMultiDamage();
@@ -785,6 +782,9 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 	{
 		Multi_Finish();
 	}
+
+	if (do_antilag) // we must clear any flags pertaining to damage or knockback protection
+		antilag_clearflags_all();
 }
 
 /*
@@ -901,6 +901,7 @@ void W_FireShotgun()
 		antilag_lagmove_all_hitscan(self); // we can do the antilag check out here in instagib since knockback doesn't matter
 		FireInstaBullet(dir, dtSG);
 		antilag_unmove_all();
+		antilag_clearflags_all();
 	}
 	else
 	{
@@ -1307,6 +1308,7 @@ void W_FireRocket()
 
 	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
+	antilag_clearflags_all();
 
 #ifdef BOT_SUPPORT
 	BotsRocketSpawned(newmis);
@@ -1385,6 +1387,9 @@ void LightningDamage(vec3_t p1, vec3_t p2, gedict_t *from, float damage)
 	{
 		lgc_register_miss(p1, from);
 	}
+
+	if (do_antilag)
+		antilag_clearflags_all();
 }
 
 void W_FireLightning()
@@ -1441,7 +1446,7 @@ void W_FireLightning()
 				antilag_lagmove_all_hitscan(self);
 				T_RadiusDamage(self, self, 35 * cells, world, dtLG_DIS);
 				antilag_unmove_all();
-
+				antilag_clearflags_all();
 				return;
 			}
 		}
@@ -1460,7 +1465,7 @@ void W_FireLightning()
 			antilag_lagmove_all_hitscan(self);
 			T_RadiusDamage(self, self, 35 * cells, world, dtLG_DIS);
 			antilag_unmove_all();
-
+			antilag_clearflags_all();
 			return;
 		}
 	}
@@ -1666,6 +1671,7 @@ void W_FireGrenade()
 
 	antilag_lagmove_all_proj_bounce(self, newmis);
 	antilag_unmove_all();
+	antilag_clearflags_all();
 
 #ifdef BOT_SUPPORT
 	BotsGrenadeSpawned(newmis);
@@ -1910,6 +1916,7 @@ void W_FireSuperSpikes()
 
 	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
+	antilag_clearflags_all();
 
 	if (cvar("sv_antilag") == 1)
 	{
@@ -1976,7 +1983,7 @@ void W_FireSpikes(float ox)
 
 	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
-	
+	antilag_clearflags_all();
 
 	if (cvar("sv_antilag") == 1)
 	{

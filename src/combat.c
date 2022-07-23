@@ -255,14 +255,6 @@ void Killed(gedict_t *targ, gedict_t *attacker, gedict_t *inflictor)
 	oself = self;
 	self = targ;
 
-	if (self->antilag_data != NULL)
-	{
-		if (time_corrected >= self->teleport_time)
-		{
-			antilag_unmove_specific(self);
-		}
-	}
-
 	if (self->s.v.health < -99)
 	{
 		self->s.v.health = -99;	// don't let sbar look bad if a player
@@ -617,6 +609,11 @@ void T_Damage(gedict_t *targ, gedict_t *inflictor, gedict_t *attacker, float dam
 
 	take = newceil(damage - save);
 
+	// protect against rewind kills through teleporters
+	if (damage >= targ->s.v.health && targ->antilag_data && (targ->antilag_data->state_flags & ANTILAG_FL_FATALPROTECT))
+		return;
+		
+
 	// mid air damage modificators
 	if (midair)
 	{
@@ -837,7 +834,7 @@ void T_Damage(gedict_t *targ, gedict_t *inflictor, gedict_t *attacker, float dam
 
 	// figure momentum add
 	if ((inflictor != world)
-			&& (targ->teleport_time < time_corrected || targ == attacker)
+			&& (targ->antilag_data && !(targ->antilag_data->state_flags & ANTILAG_FL_KNOCKBACKPROTECT))
 			&& ((targ->s.v.movetype == MOVETYPE_WALK)
 					|| (k_bloodfest && ((int)targ->s.v.flags & FL_MONSTER))))
 	{

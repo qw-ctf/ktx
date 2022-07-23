@@ -755,8 +755,15 @@ typedef struct fb_entvars_s {
 //#define ANTILAG_XERP 0
 #define ANTILAG_MAX_PREDICTION 0.02
 #define ANTILAG_MAX_XERP 0.02
-#define ANTILAG_MAXSTATES 40
 #define ANTILAG_MAXEDICTS 256
+
+#define ANTILAG_MAXSTATES	0x20
+#define ANTILAG_MASK		0x1F
+
+#define ANTILAG_FL_REWOUND			0x01
+#define ANTILAG_FL_FATALPROTECT		0x02
+#define ANTILAG_FL_KNOCKBACKPROTECT	0x04
+
 struct gedict_s;
 typedef struct antilag_s {
 	vec3_t		rewind_origin[ANTILAG_MAXSTATES];
@@ -764,8 +771,10 @@ typedef struct antilag_s {
 	vec3_t		rewind_platform_offset[ANTILAG_MAXSTATES];
 	int			rewind_platform_edict[ANTILAG_MAXSTATES];
 	float		rewind_time[ANTILAG_MAXSTATES];
+	byte		rewind_frameflags[ANTILAG_MAXSTATES];
 	int			rewind_seek;
 
+	byte		state_flags;
 	vec3_t		held_origin;
 	vec3_t		held_velocity;
 
