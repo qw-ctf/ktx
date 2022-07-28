@@ -140,6 +140,12 @@ void W_FireAxe()
 	//source = self->s.v.origin + '0 0 16';
 
 	traceline(PASSVEC3(source), PASSVEC3(dest), false, self);
+	if (g_globalvars.trace_fraction == 1.0)
+	{
+		antilag_clearflags_all();
+		antilag_unmove_all();
+		return;
+	}
 
 	antilag_unmove_all();
 
