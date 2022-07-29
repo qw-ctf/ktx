@@ -105,7 +105,7 @@ gedict_t* MakeLink()
 	newmis = spawn();
 	g_globalvars.newmis = EDICT_TO_PROG(newmis);
 
-	newmis->s.v.movetype = MOVETYPE_FLYMISSILE;
+	newmis->s.v.movetype = MOVETYPE_FLY;
 	newmis->s.v.solid = SOLID_NOT;
 	newmis->s.v.owner = EDICT_TO_PROG(self);
 	SetVector(newmis->s.v.avelocity, 200, 200, 200);
