@@ -4411,9 +4411,7 @@ void PlayerPostThink()
 	}
 
 	// can't predict hook reliably, so just force prediction off for now
-	if (self->s.v.weapon == IT_HOOK)
-		self->client_predflags = PRDFL_FORCEOFF;
-	else if (!readytostart())
+	if (!readytostart())
 		self->client_predflags = PRDFL_FORCEOFF;
 	else if (!CA_can_fire(self))
 		self->client_predflags = PRDFL_FORCEOFF;
