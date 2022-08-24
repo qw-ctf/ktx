@@ -287,7 +287,7 @@ char* GetRuneSpawnName()
 {
 	char *runespawn;
 
-	if (cvar("k_ctf_based_spawn"))
+	if (cvar("k_ctf_based_spawn") == 1)
 	{
 		runespawn = g_random() < 0.5 ? "info_player_team1" : "info_player_team2";
 	}
