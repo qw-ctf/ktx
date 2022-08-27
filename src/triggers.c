@@ -938,6 +938,17 @@ void hurt_touch()
 {
 	if (!other->s.v.takedamage)
 	{
+		if (cvar("k_ctf_hurt_items"))
+		{
+			if (streq(other->classname, "item_flag_team1") || streq(other->classname, "item_flag_team2"))
+			{
+				other->super_time = g_globalvars.time;
+			}
+			else if (streq(other->classname, "rune"))
+			{
+				other->s.v.nextthink = g_globalvars.time;
+			}
+		}
 		return;
 	}
 
