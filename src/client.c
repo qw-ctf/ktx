@@ -1670,8 +1670,8 @@ void ClientConnect()
 	// Yawnmode: reset spawn weights at server join (can handle max MAX_SPAWN_WEIGHTS spawn points atm)
 	// Just count the spots
 	totalspots = find_cnt(FOFCLSN, "info_player_deathmatch") +
-		find_cnt(FOFCLSN, "info_player_deathmatch_team1") +
-		find_cnt(FOFCLSN, "info_player_deathmatch_team2");
+		find_cnt(FOFCLSN, "info_player_team1_deathmatch") +
+		find_cnt(FOFCLSN, "info_player_team2_deathmatch");
 
 	// Don't use this spawn model for maps with more than MAX_SPAWN_WEIGHTS spawns (shouldn't even happen)
 	if (totalspots <= MAX_SPAWN_WEIGHTS)
@@ -1799,7 +1799,7 @@ void PutClientInServer(void)
 		{
 			spot = SelectSpawnPoint(g_random() <= 0.5 ?
 				"info_player_deathmatch" : streq(getteam(self), "red") ?
-				"info_player_deathmatch_team1" : "info_player_deathmatch_team2");
+				"info_player_team1_deathmatch" : "info_player_team2_deathmatch");
 		}
 		else if (isRA() && (isWinner(self) || isLoser(self)))
 		{
