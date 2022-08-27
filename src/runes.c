@@ -13,12 +13,38 @@ char* GetRuneSpawnName();
 
 void DoDropRune(int rune, qbool s)
 {
-	gedict_t *item;
+	gedict_t *item, *pos = NULL;
 
 	cl_refresh_plus_scores(self);
 
+	if (s)
+	{
+		if (rune & CTF_RUNE_RES)
+		{
+			pos = ez_find(world, "item_rune_res");
+		}
+		else if (rune & CTF_RUNE_STR)
+		{
+			pos = ez_find(world, "item_rune_str");
+		}
+		else if (rune & CTF_RUNE_HST)
+		{
+			pos = ez_find(world, "item_rune_hst");
+		}
+		else if (rune & CTF_RUNE_RGN)
+		{
+			pos = ez_find(world, "item_rune_rgn");
+		}
+	}
+
+	// No specific rune position on this map or use case, just spawn on self
+	if (!pos)
+	{
+		pos = self;
+	}
+
 	item = spawn();
-	setorigin(item, self->s.v.origin[0], self->s.v.origin[1], self->s.v.origin[2] - 24);
+	setorigin(item, pos->s.v.origin[0], pos->s.v.origin[1], pos->s.v.origin[2] - 24);
 	item->classname = "rune";
 	item->ctf_flag = rune;
 	item->s.v.velocity[0] = i_rnd(-100, 100);
@@ -26,7 +52,13 @@ void DoDropRune(int rune, qbool s)
 	item->s.v.velocity[2] = 400;
 	item->s.v.flags = FL_ITEM;
 	item->s.v.solid = SOLID_TRIGGER;
-	item->s.v.movetype = (int) cvar("k_ctf_rune_bounce") & 1 ? MOVETYPE_BOUNCE : MOVETYPE_TOSS;
+
+	// When map specifies position of a rune, respect that rather than toss
+	// around the rune.
+	if (pos == self)
+	{
+		item->s.v.movetype = (int) cvar("k_ctf_rune_bounce") & 1 ? MOVETYPE_BOUNCE : MOVETYPE_TOSS;
+	}
 
 	if (rune & CTF_RUNE_RES)
 	{
