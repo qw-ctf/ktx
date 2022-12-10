@@ -346,6 +346,13 @@ void AngleVectors(vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 	up[2] = cr * cp;
 }
 
+void AnglesNormalize(vec3_t v)
+{
+	v[0] = fmod(v[0], 360.0);
+	v[1] = fmod(v[1], 360.0);
+	v[2] = fmod(v[2], 360.0);
+}
+
 int VectorCompare(vec3_t v1, vec3_t v2)
 {
 	int i;
