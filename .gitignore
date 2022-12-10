@@ -20,6 +20,8 @@ src/Makefile.vm
 
 #virtualenv
 .venv/
+.cache/
+.vscode/
 
 # build output dirs
 build*/
