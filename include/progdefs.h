@@ -217,6 +217,17 @@ typedef struct
 	string_t    noise3;
 #endif
 #endif
+
+	int rotate_type;
+	vec3_t neworigin;
+	vec3_t rotate;
+	float endtime;
+	string_t group;
+	float duration;
+	vec3_t finaldest;
+	vec3_t finalangle;
+	string_t path;
+	string_t event;
 } entvars_t;
 
 #define PROGHEADER_CRC 54730

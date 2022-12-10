@@ -151,6 +151,9 @@ field_t fields[] =
 
 // KTX teleporter flags
 	{ "ktx_votemap", 				FOFS(ktx_votemap), 					F_LSTRING },
+
+	{ "rotate", 					FOFS(s.v.rotate), 					F_VECTOR },
+	{ "path", 						FOFS(s.v.path), 					F_LSTRING },
 	{ NULL }
 };
 
@@ -227,6 +230,13 @@ void SP_func_plat();
 void SP_func_train();
 void SP_misc_teleporttrain();
 void SP_func_button();
+
+void SP_rotate_object();
+void SP_path_rotate();
+void SP_func_rotate_entity();
+void SP_func_rotate_door();
+void SP_func_rotate_train();
+void SP_func_movewall();
 
 void SP_trigger_multiple();
 void SP_trigger_once();
@@ -356,6 +366,13 @@ spawn_t spawns[] =
 	{ "func_train", 					SP_func_train },
 	{ "misc_teleporttrain", 			SP_misc_teleporttrain },
 	{ "func_button", 					SP_func_button },
+
+	{ "func_rotate_entity", 			SP_func_rotate_entity },
+	{ "func_rotate_door", 				SP_func_rotate_door },
+	{ "func_movewall", 					SP_func_movewall },
+	{ "func_rotate_train", 				SP_func_rotate_train },
+	{ "rotate_object", 					SP_rotate_object },
+	{ "path_rotate", 					SP_path_rotate },
 
 	{ "trigger_multiple", 				SP_trigger_multiple },
 	{ "trigger_once", 					SP_trigger_once },
