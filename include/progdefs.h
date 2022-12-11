@@ -228,6 +228,11 @@ typedef struct
 	vec3_t finalangle;
 	string_t path;
 	string_t event;
+
+	float attack_timer;
+	float distance;
+	float waitmin;
+	float waitmin2;
 } entvars_t;
 
 #define PROGHEADER_CRC 54730

@@ -64,6 +64,7 @@ set(SRC_COMMON
 	"${DIR_SRC}/doors.c"
 	"${DIR_SRC}/fb_globals.c"
 	"${DIR_SRC}/files.c"
+	"${DIR_SRC}/func_bob.c"
 	"${DIR_SRC}/func_rotate_common.c"
 	"${DIR_SRC}/func_rotate_door.c"
 	"${DIR_SRC}/func_rotate_entity.c"

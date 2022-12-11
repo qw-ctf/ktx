@@ -238,6 +238,8 @@ void SP_func_rotate_door();
 void SP_func_rotate_train();
 void SP_func_movewall();
 
+void SP_func_bob();
+
 void SP_trigger_multiple();
 void SP_trigger_once();
 void SP_trigger_relay();
@@ -373,6 +375,8 @@ spawn_t spawns[] =
 	{ "func_rotate_train", 				SP_func_rotate_train },
 	{ "rotate_object", 					SP_rotate_object },
 	{ "path_rotate", 					SP_path_rotate },
+
+	{ "func_bob", 						SP_func_bob },
 
 	{ "trigger_multiple", 				SP_trigger_multiple },
 	{ "trigger_once", 					SP_trigger_once },
