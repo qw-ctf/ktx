@@ -125,6 +125,7 @@ set(SRC_COMMON
 	"${DIR_SRC}/vote.c"
 	"${DIR_SRC}/weapons.c"
 	"${DIR_SRC}/world.c"
+	"${DIR_SRC}/hiprot.c"
 	)
 
 # Build native library.
