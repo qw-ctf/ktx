@@ -1229,6 +1229,20 @@ typedef struct gedict_s
 	float healmax;                          // maximum health see triggers.c for defaults
 	float healtimer;                        // internal timer for tracking health replenishment interval
 // }
+
+// { func_breakable
+	string_t brk_mdl_debris;
+	string_t brk_template1;
+	string_t brk_template2;
+	string_t brk_template3;
+	string_t brk_template4;
+	string_t brk_template5;
+	float brk_obj_count1;
+	float brk_obj_count2;
+	float brk_obj_count3;
+	float brk_obj_count4;
+	float brk_obj_count5;
+// }
 } gedict_t;
 
 typedef enum
