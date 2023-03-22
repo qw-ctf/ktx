@@ -346,6 +346,8 @@ void SP_ambient_general();
 
 void SP_trigger_heal();
 
+void SP_func_breakable();
+
 spawn_t spawns[] =
 {
 // info entities don't do anything at all, but provide positional
@@ -502,6 +504,8 @@ spawn_t spawns[] =
 	{ "func_rotate_entity", SP_func_rotate_entity },
 
 	{ "trigger_heal", SP_trigger_heal },
+
+	{ "func_breakable", SP_func_breakable },
 
 	{ 0, 0 }
 };
