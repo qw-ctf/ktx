@@ -1,0 +1,57 @@
+name: main
+on: [pull_request, push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+       target: [linux-amd64, linux-i686, linux-armhf, linux-aarch64, windows-x64, windows-x86]
+       include:
+         - target: linux-amd64
+           os: linux
+           arch: amd64
+           ext: ".so"
+         - target: linux-i686
+           os: linux
+           arch: i686
+           ext: ".so"
+         - target: linux-armhf
+           os: linux
+           arch: armhf
+           ext: ".so"
+         - target: linux-aarch64
+           os: linux
+           arch: aarch64
+           ext: ".so"
+         - target: windows-x64
+           os: windows
+           arch: x64
+           ext: ".dll"
+         - target: windows-x86
+           os: windows
+           arch: x86
+           ext: ".dll"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Prepare Build Environemnt
+        run: |
+             sudo apt-get update
+             sudo apt-get -y install build-essential cmake gcc-i686-linux-gnu
+             sudo apt-get -y install gcc-arm-linux-gnueabihf libc6-dev-armhf-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+             sudo apt-get -y install gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
+
+      - name: Build
+        run: |
+          ./build_cmake.sh ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ktx-${{ matrix.target }}
+          path: build/*/qwprogs${{ matrix.ext }}
