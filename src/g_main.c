@@ -641,9 +641,7 @@ static qbool check_ezquake(gedict_t *p)
 
 //===========================================================================
 
-
-
-qbool haveextensiontab[G_EXTENSIONS_LAST-G_EXTENSIONS_FIRST];
+int		extensionindex[G_EXTENSIONS_LAST - G_EXTENSIONS_FIRST];
 
 static qbool G_InitExtensions(void)
 {
@@ -666,11 +664,13 @@ static qbool G_InitExtensions(void)
 		{"clientstat",			G_CLIENTSTAT},
 		{"pointerstat",			G_POINTERSTAT},
 		#endif
+		{"getmodelindex",		G_GETMODELINDEX},
+		{"getsoundindex",		G_GETSOUNDINDEX},
 	};
 	int i;
 	for (i = 0; i < sizeof(exttraps)/sizeof(exttraps[0]); i++)
 	{
-		haveextensiontab[exttraps[i].id-G_EXTENSIONS_FIRST] = trap_Map_Extension(exttraps[i].name, exttraps[i].id)>=0;
+		extensionindex[exttraps[i].id - G_EXTENSIONS_FIRST] = trap_Map_Extension(exttraps[i].name, exttraps[i].id);
 	}
 
 	//

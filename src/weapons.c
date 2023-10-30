@@ -73,9 +73,12 @@ void W_FireLightning();
 
 qbool SendEntity_Projectile(gedict_t *to, int sendflags)
 {
-	WriteByte(MSG_ENTITY, NENT_PROJECTILE);
-	WriteByte(MSG_ENTITY, sendflags);
+	WriteByte(MSG_ENTITY, EZCSQC_PROJECTILE);
 
+	if (self->pos1[0] == 0 && self->pos1[1] == 0 && self->pos1[2] == 0)
+		sendflags &= ~16; // if our pos1 is blank, don't send it.
+
+	WriteByte(MSG_ENTITY, sendflags);
 
 	if (sendflags & 1)
 	{
@@ -108,7 +111,13 @@ qbool SendEntity_Projectile(gedict_t *to, int sendflags)
 	if (sendflags & 8)
 	{
 		WriteEntity(MSG_ENTITY, PROG_TO_EDICT(self->s.v.owner)); // we only care about the owner if it's a player, otherwise world
-		WriteByte(MSG_ENTITY, self->client_time * 255);
+	}
+
+	if (sendflags & 16)
+	{
+		WriteCoord(MSG_ENTITY, self->pos1[0]);
+		WriteCoord(MSG_ENTITY, self->pos1[1]);
+		WriteCoord(MSG_ENTITY, self->pos1[2]);
 	}
 
 	return true;
@@ -606,6 +615,9 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 			|| (!match_in_progress && self && (self->ct == ctPlayer) && iKey(self, "nrb")));
 	qbool do_antilag = (self->ct == ctPlayer); // hacky check
 
+	if (do_antilag)
+		antilag_lagmove_all_hitscan(self);
+
 	trap_makevectors(self->s.v.v_angle);
 	VectorScale(g_globalvars.v_forward, 10, tmp);
 	VectorAdd(self->s.v.origin, tmp, src);
@@ -615,9 +627,6 @@ void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, fl
 
 	ClearMultiDamage();
 	multi_damage_type = deathtype;
-
-	if (do_antilag)
-		antilag_lagmove_all_hitscan(self);
 
 	if (cvar("k_instagib"))
 	{
@@ -1302,7 +1311,7 @@ void W_FireRocket()
 
 	setmodel(newmis, "progs/missile.mdl");
 	setsize(newmis, 0, 0, 0, 0, 0, 0);
-
+	
 	// setorigin (newmis, self->s.v.origin + v_forward*8 + '0 0 16');
 	setorigin(newmis, self->s.v.origin[0] + g_globalvars.v_forward[0] * 8,
 				self->s.v.origin[1] + g_globalvars.v_forward[1] * 8,
@@ -1357,15 +1366,11 @@ void LightningHit(gedict_t *from, float damage)
  LightningDamage
  =================
  */
-void LightningDamage(vec3_t p1, vec3_t p2, gedict_t *from, float damage)
+void LightningDamage(vec3_t p1, vec3_t p2, gedict_t *from, float damage, qbool is_antilagged)
 {
-	qbool do_antilag = (from->ct == ctPlayer);  // hacky check
-	if (do_antilag)
-		antilag_lagmove_all_hitscan(from);
-
 	traceline(PASSVEC3(p1), PASSVEC3(p2), false, from);
 
-	if (do_antilag)
+	if (is_antilagged)
 		antilag_unmove_all();
 
 	if (PROG_TO_EDICT(g_globalvars.trace_ent)->s.v.takedamage)
@@ -1394,7 +1399,7 @@ void LightningDamage(vec3_t p1, vec3_t p2, gedict_t *from, float damage)
 		lgc_register_miss(p1, from);
 	}
 
-	if (do_antilag)
+	if (is_antilagged)
 		antilag_clearflags_all();
 }
 
@@ -1498,6 +1503,11 @@ void W_FireLightning()
 		}
 	}
 
+
+	qbool do_antilag = (self->ct == ctPlayer);  // hacky check
+	if (do_antilag)
+		antilag_lagmove_all_hitscan(self);
+
 	VectorCopy(self->s.v.origin, org);	//org = self->s.v.origin + '0 0 16';
 	org[2] += 16;
 
@@ -1521,7 +1531,7 @@ void W_FireLightning()
 	VectorAdd(g_globalvars.trace_endpos, tmp, tmp);
 // qqshka - not from 'self->s.v.origin' but from 'org'
 //	LightningDamage( self->s.v.origin, tmp, self, 30 );
-	LightningDamage(org, tmp, self, 30);
+	LightningDamage(org, tmp, self, 30, do_antilag);
 }
 
 //=============================================================================
@@ -1670,6 +1680,8 @@ void W_FireGrenade()
 	{
 		newmis->think = (func_t) SUB_Remove;
 	}
+
+	antilag_platform_move(self->antilag_data, self->client_ping / 1000);
 
 	setmodel(newmis, "progs/grenade.mdl");
 	setsize(newmis, 0, 0, 0, 0, 0, 0);
@@ -1909,8 +1921,9 @@ void W_FireSuperSpikes()
 		}
 	}
 
-	aim(dir);		//dir = aim (self, 1000);
+	antilag_platform_move(self->antilag_data, self->client_ping / 1000);
 
+	aim(dir);		//dir = aim (self, 1000);
 	VectorCopy(self->s.v.origin, tmp);
 	tmp[2] += 16;
 	launch_spike(tmp, dir);
@@ -1977,6 +1990,8 @@ void W_FireSpikes(float ox)
 			AmmoUsed(self);
 		}
 	}
+
+	antilag_platform_move(self->antilag_data, self->client_ping / 1000);
 
 	aim(dir);		// dir = aim (self, 1000);
 	VectorScale(g_globalvars.v_right, ox, tmp);
@@ -2082,6 +2097,7 @@ void W_SetCurrentAmmo()
 		case IT_AXE:
 			self->s.v.currentammo = 0;
 			self->weaponmodel = "progs/v_axe.mdl";
+			self->weapon_index = 0;
 			self->s.v.weaponframe = 0;
 			if (vw_enabled)
 			{
@@ -2101,6 +2117,7 @@ void W_SetCurrentAmmo()
 				self->weaponmodel = "progs/v_shot.mdl";
 			}
 
+			self->weapon_index = 1;
 			self->s.v.weaponframe = 0;
 			items |= IT_SHELLS;
 			if (vw_enabled)
@@ -2113,6 +2130,7 @@ void W_SetCurrentAmmo()
 		case IT_SUPER_SHOTGUN:
 			self->s.v.currentammo = self->s.v.ammo_shells;
 			self->weaponmodel = "progs/v_shot2.mdl";
+			self->weapon_index = 2;
 			self->s.v.weaponframe = 0;
 			items |= IT_SHELLS;
 			if (vw_enabled)
@@ -2125,6 +2143,7 @@ void W_SetCurrentAmmo()
 		case IT_NAILGUN:
 			self->s.v.currentammo = self->s.v.ammo_nails;
 			self->weaponmodel = "progs/v_nail.mdl";
+			self->weapon_index = 3;
 			self->s.v.weaponframe = 0;
 			items |= IT_NAILS;
 			if (vw_enabled)
@@ -2137,6 +2156,7 @@ void W_SetCurrentAmmo()
 		case IT_SUPER_NAILGUN:
 			self->s.v.currentammo = self->s.v.ammo_nails;
 			self->weaponmodel = "progs/v_nail2.mdl";
+			self->weapon_index = 4;
 			self->s.v.weaponframe = 0;
 			items |= IT_NAILS;
 			if (vw_enabled)
@@ -2149,6 +2169,7 @@ void W_SetCurrentAmmo()
 		case IT_GRENADE_LAUNCHER:
 			self->s.v.currentammo = self->s.v.ammo_rockets;
 			self->weaponmodel = "progs/v_rock.mdl";
+			self->weapon_index = 5;
 			self->s.v.weaponframe = 0;
 			items |= IT_ROCKETS;
 			if (vw_enabled)
@@ -2161,6 +2182,7 @@ void W_SetCurrentAmmo()
 		case IT_ROCKET_LAUNCHER:
 			self->s.v.currentammo = self->s.v.ammo_rockets;
 			self->weaponmodel = "progs/v_rock2.mdl";
+			self->weapon_index = 6;
 			self->s.v.weaponframe = 0;
 			items |= IT_ROCKETS;
 			if (vw_enabled)
@@ -2173,6 +2195,7 @@ void W_SetCurrentAmmo()
 		case IT_LIGHTNING:
 			self->s.v.currentammo = self->s.v.ammo_cells;
 			self->weaponmodel = "progs/v_light.mdl";
+			self->weapon_index = 7;
 			self->s.v.weaponframe = 0;
 			items |= IT_CELLS;
 			if (vw_enabled)

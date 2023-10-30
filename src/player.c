@@ -218,7 +218,7 @@ void player_shot1()
 	self->s.v.frame = 113;
 	self->client_think = (func_t)player_shot2;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 2;
+	self->client_thinkindex = 1;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -232,7 +232,7 @@ void player_shot2()
 	self->s.v.frame = 114;
 	self->client_think = (func_t)player_shot3;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 3;
+	self->client_thinkindex = 2;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -245,7 +245,7 @@ void player_shot3()
 	self->s.v.frame = 115;
 	self->client_think = (func_t)player_shot4;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 4;
+	self->client_thinkindex = 3;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -258,7 +258,7 @@ void player_shot4()
 	self->s.v.frame = 116;
 	self->client_think = (func_t)player_shot5;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 5;
+	self->client_thinkindex = 4;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -271,7 +271,7 @@ void player_shot5()
 	self->s.v.frame = 117;
 	self->client_think = (func_t)player_shot6;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 6;
+	self->client_thinkindex = 5;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -285,7 +285,7 @@ void player_shot6()
 	self->walkframe = 0;
 	self->client_think = (func_t) player_run;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 0;
+	self->client_thinkindex = 6;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -529,7 +529,7 @@ void player_nail1()
 	self->s.v.frame = 103;
 	self->client_think = (func_t)player_nail2;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 2;
+	self->client_thinkindex = 1;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -562,7 +562,7 @@ void player_nail2()
 	self->s.v.frame = 104;
 	self->client_think = (func_t) player_nail1;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 1;
+	self->client_thinkindex = 2;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -638,7 +638,7 @@ void player_light2()
 	self->s.v.frame = 106;
 	self->client_think = (func_t)player_light1;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 1;
+	self->client_thinkindex = 2;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -680,7 +680,7 @@ void player_rocket1()
 	self->s.v.frame = 107;
 	self->client_think = (func_t)player_rocket2;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 2;
+	self->client_thinkindex = 1;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -694,7 +694,7 @@ void player_rocket2()
 	self->s.v.frame = 108;
 	self->client_think = (func_t)player_rocket3;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 3;
+	self->client_thinkindex = 2;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -707,7 +707,7 @@ void player_rocket3()
 	self->s.v.frame = 109;
 	self->client_think = (func_t)player_rocket4;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 4;
+	self->client_thinkindex = 3;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -720,7 +720,7 @@ void player_rocket4()
 	self->s.v.frame = 110;
 	self->client_think = (func_t)player_rocket5;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 5;
+	self->client_thinkindex = 4;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -733,7 +733,7 @@ void player_rocket5()
 	self->s.v.frame = 111;
 	self->client_think = (func_t)player_rocket6;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 6;
+	self->client_thinkindex = 5;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;
@@ -747,7 +747,7 @@ void player_rocket6()
 	self->walkframe = 0;
 	self->client_think = (func_t) player_run;
 	self->client_nextthink = self->client_time + 0.1;
-	self->client_thinkindex = 0;
+	self->client_thinkindex = 6;
 
 	self->think = (func_t)player_dummyanim;
 	self->s.v.nextthink = g_globalvars.time + 0.1;

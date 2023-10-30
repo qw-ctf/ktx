@@ -1519,8 +1519,6 @@ qbool CanConnect()
 }
 
 
-
-
 qbool WeaponPrediction_SendEntity(gedict_t *to, int sendflags)
 {
 	self = PROG_TO_EDICT(self->s.v.owner);
@@ -1528,14 +1526,13 @@ qbool WeaponPrediction_SendEntity(gedict_t *to, int sendflags)
 	if (self != to)
 		return false;
 
-	WriteByte(MSG_ENTITY, NENT_WEAPONPRED);
+	WriteByte(MSG_ENTITY, EZCSQC_WEAPONINFO);
 	WriteByte(MSG_ENTITY, sendflags);
-
 	
 	if (sendflags & 1)
 	{
 		WriteByte(MSG_ENTITY, self->s.v.impulse);
-		WriteShort(MSG_ENTITY, self->s.v.weapon);
+		WriteByte(MSG_ENTITY, self->weapon_index);
 	}
 	if (sendflags & 2)
 		WriteByte(MSG_ENTITY, self->s.v.ammo_shells);
@@ -1618,7 +1615,6 @@ void WeaponPrediction_MarkSendFlags()
 		wep->client_predflags = self->client_predflags;
 		wep->client_ping = self->client_ping;
 	}
-
 
 	trap_SetSendNeeded(NUM_FOR_EDICT(wep), sendflags, 0);
 }
@@ -4410,7 +4406,7 @@ void PlayerPostThink()
 			self->client_predflags = (int)self->client_predflags | PRDFL_MIDAIR;
 	}
 
-	// can't predict hook reliably, so just force prediction off for now
+	// force weapon prediction off when neccesary
 	if (!readytostart())
 		self->client_predflags = PRDFL_FORCEOFF;
 	else if (!CA_can_fire(self))

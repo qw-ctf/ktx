@@ -10,6 +10,430 @@
 #include "g_local.h"
 #include "fb_globals.h"
 
+
+
+weppreddef_t wpredict_definitions[16];
+
+qbool WeaponDefinition_SendEntity(gedict_t *to, int sendflags)
+{
+	WriteByte(MSG_ENTITY, EZCSQC_WEAPONDEF);
+
+	WriteByte(MSG_ENTITY, sendflags);
+	weppreddef_t *wep = &wpredict_definitions[(int)self->s.v.weapon];
+	WriteByte(MSG_ENTITY, (int)self->s.v.weapon);
+
+	if (sendflags & 1)
+	{
+		WriteShort(MSG_ENTITY, wep->attack_time);
+		WriteShort(MSG_ENTITY, wep->modelindex);
+	}
+
+	if (sendflags & 2)
+	{
+		WriteByte(MSG_ENTITY, wep->impulse);
+
+		int bitmask;
+		for (int i = 0; i < 24; i++) // find bit number, there's probably a better way to do this
+		{
+			bitmask = 1 << i;
+			if (bitmask & wep->itemflag)
+			{
+				bitmask = -1;
+				WriteByte(MSG_ENTITY, i);
+				break;
+			}
+		}
+		if (bitmask != -1)
+			WriteByte(MSG_ENTITY, 255);
+	}
+
+	if (sendflags & 4)
+	{
+		WriteByte(MSG_ENTITY, wep->anim_number = wep->anim_number & 255);
+		for (int i = 0; i < wep->anim_number; i++)
+		{
+			weppredanim_t *anim = &wep->anim_states[i];
+
+			WriteByte(MSG_ENTITY, anim->mdlframe + 127);
+			WriteByte(MSG_ENTITY, anim->flags);
+			if (anim->flags & WEPPREDANIM_MOREBYTES)
+				WriteByte(MSG_ENTITY, anim->flags >> 8);
+			if (anim->flags & WEPPREDANIM_SOUND)
+			{
+				WriteShort(MSG_ENTITY, anim->sound);
+				WriteShort(MSG_ENTITY, anim->soundmask);
+			}
+			if (anim->flags & WEPPREDANIM_PROJECTILE)
+			{
+				WriteShort(MSG_ENTITY, anim->projectile_model);
+				for (int k = 0; k < 3; k++)
+					WriteShort(MSG_ENTITY, anim->projectile_velocity[k]);
+				for (int k = 0; k < 3; k++)
+					WriteByte(MSG_ENTITY, anim->projectile_offset[k]);
+			}
+			WriteByte(MSG_ENTITY, anim->nextanim);
+			if (anim->flags & WEPPREDANIM_BRANCH)
+				WriteByte(MSG_ENTITY, anim->altanim);
+			WriteByte(MSG_ENTITY, anim->length / 10);
+		}
+	}
+
+	return true;
+}
+
+void WPredict_Initialize()
+{
+	weppreddef_t *axe = &wpredict_definitions[0];
+	weppreddef_t *sg = &wpredict_definitions[1];
+	weppreddef_t *ssg = &wpredict_definitions[2];
+	weppreddef_t *ng = &wpredict_definitions[3];
+	weppreddef_t *sng = &wpredict_definitions[4];
+	weppreddef_t *gl = &wpredict_definitions[5];
+	weppreddef_t *rl = &wpredict_definitions[6];
+	weppreddef_t *lg = &wpredict_definitions[7];
+	weppreddef_t *coilgun = &wpredict_definitions[8];
+	weppreddef_t *hook = &wpredict_definitions[9];
+
+	weppredanim_t *player_shot0;
+	weppredanim_t *player_shot1;
+	weppredanim_t *player_shot2;
+	weppredanim_t *player_shot3;
+	weppredanim_t *player_shot4;
+	weppredanim_t *player_shot5;
+	weppredanim_t *player_shot6;
+
+
+	gedict_t *wepdef;
+	// SHOTGUN
+	wepdef = spawn();
+	trap_SetExtField_f(wepdef, "pvsflags", 3);
+	trap_SetExtField_i(wepdef, "SendEntity", 1);
+	wepdef->SendEntity = (func_t)WeaponDefinition_SendEntity;
+	wepdef->s.v.weapon = sg - wpredict_definitions;
+	player_shot0 = &sg->anim_states[0];
+	player_shot1 = &sg->anim_states[1];
+	player_shot2 = &sg->anim_states[2];
+	player_shot3 = &sg->anim_states[3];
+	player_shot4 = &sg->anim_states[4];
+	player_shot5 = &sg->anim_states[5];
+	player_shot6 = &sg->anim_states[6];
+	sg->modelindex = trap_getModelIndex("progs/v_shot.mdl", true);
+	sg->attack_time = 500;
+	sg->impulse = 2;
+	sg->itemflag = IT_SHOTGUN;
+	sg->anim_number = 7;
+	// idle anim
+	player_shot0->flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+	player_shot0->mdlframe = 0;
+	player_shot0->nextanim = 1;
+	// shot 1
+	player_shot1->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND;
+	player_shot1->sound = trap_getSoundIndex("weapons/guncock.wav", true);
+	player_shot1->soundmask = 0x04;
+	player_shot1->mdlframe = 1;
+	player_shot1->nextanim = 2;
+	player_shot1->length = 100;
+	// shot 2
+	player_shot2->mdlframe = 2;
+	player_shot2->nextanim = 3;
+	player_shot2->length = 100;
+	// shot 3
+	player_shot3->mdlframe = 3;
+	player_shot3->nextanim = 4;
+	player_shot3->length = 100;
+	// shot 4
+	player_shot4->mdlframe = 4;
+	player_shot4->nextanim = 5;
+	player_shot4->length = 100;
+	// shot 5
+	player_shot5->mdlframe = 5;
+	player_shot5->nextanim = 6;
+	player_shot5->length = 100;
+	// shot 6
+	player_shot6->mdlframe = 6;
+	player_shot6->nextanim = 0;
+	player_shot6->length = 100;
+	// END OF SHOTGUN
+
+	// SUPER SHOTGUN
+	wepdef = spawn();
+	trap_SetExtField_f(wepdef, "pvsflags", 3);
+	trap_SetExtField_i(wepdef, "SendEntity", 1);
+	wepdef->SendEntity = (func_t)WeaponDefinition_SendEntity;
+	wepdef->s.v.weapon = ssg - wpredict_definitions;
+	player_shot0 = &ssg->anim_states[0];
+	player_shot1 = &ssg->anim_states[1];
+	player_shot2 = &ssg->anim_states[2];
+	player_shot3 = &ssg->anim_states[3];
+	player_shot4 = &ssg->anim_states[4];
+	player_shot5 = &ssg->anim_states[5];
+	player_shot6 = &ssg->anim_states[6];
+	ssg->modelindex = trap_getModelIndex("progs/v_shot2.mdl", true);
+	ssg->attack_time = k_yawnmode ? 800 : 700;
+	ssg->impulse = 3;
+	ssg->itemflag = IT_SUPER_SHOTGUN;
+	ssg->anim_number = 7;
+	// idle anim
+	player_shot0->flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+	player_shot0->mdlframe = 0;
+	player_shot0->nextanim = 1;
+	// shot 1
+	player_shot1->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND;
+	player_shot1->sound = trap_getSoundIndex("weapons/shotgn2.wav", true);
+	player_shot1->soundmask = 0x08;
+	player_shot1->mdlframe = 1;
+	player_shot1->nextanim = 2;
+	player_shot1->length = 100;
+	// shot 2
+	player_shot2->mdlframe = 2;
+	player_shot2->nextanim = 3;
+	player_shot2->length = 100;
+	// shot 3
+	player_shot3->mdlframe = 3;
+	player_shot3->nextanim = 4;
+	player_shot3->length = 100;
+	// shot 4
+	player_shot4->mdlframe = 4;
+	player_shot4->nextanim = 5;
+	player_shot4->length = 100;
+	// shot 5
+	player_shot5->mdlframe = 5;
+	player_shot5->nextanim = 6;
+	player_shot5->length = 100;
+	// shot 6
+	player_shot6->mdlframe = 6;
+	player_shot6->nextanim = 0;
+	player_shot6->length = 100;
+	// END OF SUPER SHOTGUN
+
+	// NAILGUN
+	wepdef = spawn();
+	trap_SetExtField_f(wepdef, "pvsflags", 3);
+	trap_SetExtField_i(wepdef, "SendEntity", 1);
+	wepdef->SendEntity = (func_t)WeaponDefinition_SendEntity;
+	wepdef->s.v.weapon = ng - wpredict_definitions;
+	player_shot0 = &ng->anim_states[0];
+	player_shot1 = &ng->anim_states[1];
+	player_shot2 = &ng->anim_states[2];
+	ng->modelindex = trap_getModelIndex("progs/v_nail.mdl", true);
+	ng->attack_time = 200;
+	ng->impulse = 4;
+	ng->itemflag = IT_NAILGUN;
+	ng->anim_number = 3;
+	// idle anim
+	player_shot0->flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+	player_shot0->mdlframe = 0;
+	player_shot0->nextanim = 1;
+	// fire1 anim
+	player_shot1->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND | WEPPREDANIM_PROJECTILE | WEPPREDANIM_ATTACK | WEPPREDANIM_BRANCH;
+	player_shot1->mdlframe = -8;
+	player_shot1->length = 100;
+	player_shot1->nextanim = 2;
+	player_shot1->altanim = 0;
+	player_shot1->sound = trap_getSoundIndex("weapons/rocket1i.wav", true);
+	player_shot1->soundmask = 0x10;
+	player_shot1->projectile_model = trap_getModelIndex("progs/spike.mdl", true);
+	player_shot1->projectile_velocity[1] = 1000;
+	player_shot1->projectile_offset[0] = 4;
+	player_shot1->projectile_offset[2] = 16;
+	// fire2 anim
+	player_shot2->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND | WEPPREDANIM_PROJECTILE | WEPPREDANIM_ATTACK | WEPPREDANIM_BRANCH;
+	player_shot2->mdlframe = -8;
+	player_shot2->length = 100;
+	player_shot2->nextanim = 1;
+	player_shot2->altanim = 0;
+	player_shot2->sound = trap_getSoundIndex("weapons/rocket1i.wav", true);
+	player_shot2->soundmask = 0x10;
+	player_shot2->projectile_model = trap_getModelIndex("progs/spike.mdl", true);
+	player_shot2->projectile_velocity[1] = 1000;
+	player_shot2->projectile_offset[0] = -4;
+	player_shot2->projectile_offset[2] = 16;
+	// END OF NAILGUN
+
+	// SUPER NAILGUN
+	wepdef = spawn();
+	trap_SetExtField_f(wepdef, "pvsflags", 3);
+	trap_SetExtField_i(wepdef, "SendEntity", 1);
+	wepdef->SendEntity = (func_t)WeaponDefinition_SendEntity;
+	wepdef->s.v.weapon = sng - wpredict_definitions;
+	player_shot0 = &sng->anim_states[0];
+	player_shot1 = &sng->anim_states[1];
+	player_shot2 = &sng->anim_states[2];
+	sng->modelindex = trap_getModelIndex("progs/v_nail2.mdl", true);
+	sng->attack_time = 200;
+	sng->impulse = 5;
+	sng->itemflag = IT_SUPER_NAILGUN;
+	sng->anim_number = 3;
+	// idle anim
+	player_shot0->flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+	player_shot0->mdlframe = 0;
+	player_shot0->nextanim = 1;
+	// fire1 anim
+	player_shot1->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND | WEPPREDANIM_PROJECTILE | WEPPREDANIM_ATTACK | WEPPREDANIM_BRANCH;
+	player_shot1->mdlframe = -8;
+	player_shot1->length = 100;
+	player_shot1->nextanim = 2;
+	player_shot1->altanim = 0;
+	player_shot1->sound = trap_getSoundIndex("weapons/spike2.wav", true);
+	player_shot1->soundmask = 0x20;
+	player_shot1->projectile_model = trap_getModelIndex("progs/s_spike.mdl", true);
+	player_shot1->projectile_velocity[1] = 1000;
+	player_shot1->projectile_offset[2] = 16;
+	// fire2 anim
+	*player_shot2 = *player_shot1;
+	player_shot2->nextanim = 1;
+	// END OF SUPER NAILGUN
+
+	// GRENADE LAUNCHER
+	wepdef = spawn();
+	trap_SetExtField_f(wepdef, "pvsflags", 3);
+	trap_SetExtField_i(wepdef, "SendEntity", 1);
+	wepdef->SendEntity = (func_t)WeaponDefinition_SendEntity;
+	wepdef->s.v.weapon = gl - wpredict_definitions;
+	player_shot0 = &gl->anim_states[0];
+	player_shot1 = &gl->anim_states[1];
+	player_shot2 = &gl->anim_states[2];
+	player_shot3 = &gl->anim_states[3];
+	player_shot4 = &gl->anim_states[4];
+	player_shot5 = &gl->anim_states[5];
+	player_shot6 = &gl->anim_states[6];
+	gl->modelindex = trap_getModelIndex("progs/v_rock.mdl", true);
+	gl->attack_time = 600;
+	gl->impulse = 6;
+	gl->itemflag = IT_GRENADE_LAUNCHER;
+	gl->anim_number = 7;
+	// idle anim
+	player_shot0->flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+	player_shot0->mdlframe = 0;
+	player_shot0->nextanim = 1;
+	// shot 1
+	player_shot1->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND | WEPPREDANIM_PROJECTILE;
+	player_shot1->mdlframe = 1;
+	player_shot1->nextanim = 2;
+	player_shot1->length = 100;
+	player_shot1->sound = trap_getSoundIndex("weapons/grenade.wav", true);
+	player_shot1->soundmask = 0x40;
+	player_shot1->projectile_model = trap_getModelIndex("progs/grenade.mdl", true);
+	player_shot1->projectile_velocity[1] = 600;
+	player_shot1->projectile_velocity[2] = 200;
+	player_shot1->projectile_offset[2] = 16;
+	// shot 2
+	player_shot2->mdlframe = 2;
+	player_shot2->nextanim = 3;
+	player_shot2->length = 100;
+	// shot 3
+	player_shot3->mdlframe = 3;
+	player_shot3->nextanim = 4;
+	player_shot3->length = 100;
+	// shot 4
+	player_shot4->mdlframe = 4;
+	player_shot4->nextanim = 5;
+	player_shot4->length = 100;
+	// shot 5
+	player_shot5->mdlframe = 5;
+	player_shot5->nextanim = 6;
+	player_shot5->length = 100;
+	// shot 6
+	player_shot6->mdlframe = 6;
+	player_shot6->nextanim = 0;
+	player_shot6->length = 100;
+	// END OF GRENADE LAUNCHER
+
+	// ROCKET LAUNCHER
+	wepdef = spawn();
+	trap_SetExtField_f(wepdef, "pvsflags", 3);
+	trap_SetExtField_i(wepdef, "SendEntity", 1);
+	wepdef->SendEntity = (func_t)WeaponDefinition_SendEntity;
+	wepdef->s.v.weapon = rl - wpredict_definitions;
+	player_shot0 = &rl->anim_states[0];
+	player_shot1 = &rl->anim_states[1];
+	player_shot2 = &rl->anim_states[2];
+	player_shot3 = &rl->anim_states[3];
+	player_shot4 = &rl->anim_states[4];
+	player_shot5 = &rl->anim_states[5];
+	player_shot6 = &rl->anim_states[6];
+	rl->modelindex = trap_getModelIndex("progs/v_rock2.mdl", true);
+	rl->attack_time = 800;
+	rl->impulse = 7;
+	rl->itemflag = IT_ROCKET_LAUNCHER;
+	rl->anim_number = 7;
+	// idle anim
+	player_shot0->flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+	player_shot0->mdlframe = 0;
+	player_shot0->nextanim = 1;
+	// shot 1
+	player_shot1->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND | WEPPREDANIM_PROJECTILE;
+	player_shot1->mdlframe = 1;
+	player_shot1->nextanim = 2;
+	player_shot1->length = 100;
+	player_shot1->sound = trap_getSoundIndex("weapons/sgun1.wav", true);
+	player_shot1->soundmask = 0x80;
+	player_shot1->projectile_model = trap_getModelIndex("progs/missile.mdl", true);
+	player_shot1->projectile_velocity[1] = 1000;
+	player_shot1->projectile_offset[2] = 16;
+	// shot 2
+	player_shot2->mdlframe = 2;
+	player_shot2->nextanim = 3;
+	player_shot2->length = 100;
+	// shot 3
+	player_shot3->mdlframe = 3;
+	player_shot3->nextanim = 4;
+	player_shot3->length = 100;
+	// shot 4
+	player_shot4->mdlframe = 4;
+	player_shot4->nextanim = 5;
+	player_shot4->length = 100;
+	// shot 5
+	player_shot5->mdlframe = 5;
+	player_shot5->nextanim = 6;
+	player_shot5->length = 100;
+	// shot 6
+	player_shot6->mdlframe = 6;
+	player_shot6->nextanim = 0;
+	player_shot6->length = 100;
+	// END OF ROCKET LAUNCHER
+
+	// LIGHTNING GUN
+	wepdef = spawn();
+	trap_SetExtField_f(wepdef, "pvsflags", 3);
+	trap_SetExtField_i(wepdef, "SendEntity", 1);
+	wepdef->SendEntity = (func_t)WeaponDefinition_SendEntity;
+	wepdef->s.v.weapon = lg - wpredict_definitions;
+	player_shot0 = &lg->anim_states[0];
+	player_shot1 = &lg->anim_states[1];
+	player_shot2 = &lg->anim_states[2];
+	lg->modelindex = trap_getModelIndex("progs/v_light.mdl", true);
+	lg->attack_time = 200;
+	lg->impulse = 8;
+	lg->itemflag = IT_LIGHTNING;
+	lg->anim_number = 3;
+	// idle anim
+	player_shot0->flags = WEPPREDANIM_ATTACK | WEPPREDANIM_SOUND | WEPPREDANIM_SOUNDAUTO;
+	player_shot0->mdlframe = 0;
+	player_shot0->nextanim = 1;
+	player_shot0->sound = trap_getSoundIndex("weapons/lstart.wav", true);
+	player_shot0->soundmask = 0x0100;
+	// fire1 anim
+	player_shot1->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND | WEPPREDANIM_LGBEAM | WEPPREDANIM_LTIME | WEPPREDANIM_ATTACK | WEPPREDANIM_BRANCH;
+	player_shot1->mdlframe = -4;
+	player_shot1->length = 100;
+	player_shot1->nextanim = 2;
+	player_shot1->altanim = 0;
+	player_shot1->sound = trap_getSoundIndex("weapons/lhit.wav", true);
+	player_shot1->soundmask = 0x0100;
+	// fire2 anim
+	player_shot2->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND | WEPPREDANIM_LGBEAM | WEPPREDANIM_LTIME | WEPPREDANIM_ATTACK | WEPPREDANIM_BRANCH;
+	player_shot2->mdlframe = -4;
+	player_shot2->length = 100;
+	player_shot2->nextanim = 1;
+	player_shot2->altanim = 0;
+	player_shot2->sound = trap_getSoundIndex("weapons/lhit.wav", true);
+	player_shot2->soundmask = 0x0100;
+	// END OF LIGHTNING GUN
+}
+
+
+
 int ANTILAG_MEMPOOL_WORLDSEEK;
 antilag_t ANTILAG_MEMPOOL[ANTILAG_MAXEDICTS];
 antilag_t *antilag_list_players;
@@ -380,6 +804,45 @@ int antilag_getseek(antilag_t *data, float ms)
 	return seek;
 }
 
+
+void antilag_platform_move(antilag_t *list, float ms)
+{
+	if (cvar("sv_antilag") != 1)
+		return;
+
+	if (!list) // if we got passed a null pointer, abort
+		return;
+
+	if (!(list->state_flags & ANTILAG_FL_REWOUND)) // if we aren't marked as rewound, we should be.
+	{
+		VectorCopy(list->owner->s.v.origin, list->held_origin);
+		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
+		list->state_flags = ANTILAG_FL_REWOUND;
+	}
+
+	float rewind_time = g_globalvars.time - ms;
+	gedict_t *e = list->owner;
+
+	int lag_platform = list->rewind_platform_edict[antilag_getseek(list, ms)];
+	if (lag_platform)
+	{
+		gedict_t *plat = PROG_TO_EDICT(lag_platform);
+		if (plat->antilag_data != NULL)
+		{
+			vec3_t diff;
+			VectorClear(diff);
+			antilag_getorigin(plat->antilag_data, rewind_time);
+			VectorSubtract(antilag_origin, plat->s.v.origin, diff);
+
+			vec3_t org;
+			VectorAdd(e->s.v.origin, diff, org);
+
+			trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(org));
+		}
+	}
+}
+
+
 void antilag_lagmove_all(gedict_t *e, float ms)
 {
 	float rewind_time = g_globalvars.time - ms;
@@ -400,23 +863,7 @@ void antilag_lagmove_all(gedict_t *e, float ms)
 
 		if (list->owner == e)
 		{
-			int lag_platform = list->rewind_platform_edict[antilag_getseek(list, ms)];
-			if (lag_platform)
-			{
-				gedict_t *plat = PROG_TO_EDICT(lag_platform);
-				if (plat->antilag_data != NULL)
-				{
-					vec3_t diff;
-					VectorClear(diff);
-					antilag_getorigin(plat->antilag_data, rewind_time);
-					VectorSubtract(antilag_origin, plat->s.v.origin, diff);
-
-					vec3_t org;
-					VectorAdd(e->s.v.origin, diff, org);
-
-					trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(org));
-				}
-			}
+			antilag_platform_move(list, ms);
 			continue;
 		}
 
@@ -469,23 +916,7 @@ void antilag_lagmove_all_nohold(gedict_t *e, float ms, int plat_rewind)
 		{
 			if (plat_rewind)
 			{
-				int lag_platform = list->rewind_platform_edict[antilag_getseek(list, ms)];
-				if (lag_platform)
-				{
-					gedict_t *plat = PROG_TO_EDICT(lag_platform);
-					if (plat->antilag_data != NULL)
-					{
-						vec3_t diff;
-						VectorClear(diff);
-						antilag_getorigin(plat->antilag_data, rewind_time);
-						VectorSubtract(antilag_origin, plat->s.v.origin, diff);
-
-						vec3_t org;
-						VectorAdd(e->s.v.origin, diff, org);
-
-						trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(org));
-					}
-				}
+				antilag_platform_move(list, ms);
 			}
 			continue;
 		}
@@ -586,6 +1017,9 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
 	{
+		if (list->state_flags & ANTILAG_FL_REWOUND)
+			continue;
+
 		list->state_flags = ANTILAG_FL_REWOUND;
 		VectorCopy(list->owner->s.v.origin, list->held_origin);
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
@@ -593,12 +1027,15 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
+		if (list->state_flags & ANTILAG_FL_REWOUND)
+			continue;
+
 		list->state_flags = ANTILAG_FL_REWOUND;
 		VectorCopy(list->owner->s.v.origin, list->held_origin);
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
 	}
 
-	///*
+	/*
 	vec3_t old_org;
 	VectorCopy(owner->s.v.origin, old_org);
 	antilag_lagmove_all_nohold(owner, ms, true);
@@ -645,6 +1082,7 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	}
 	//
 
+	VectorCopy(e->s.v.origin, e->pos1);
 
 	// actual stepping through
 	while (current_time <= g_globalvars.time)
@@ -704,7 +1142,7 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	antilag_t *list;
 	for (list = antilag_list_players; list != NULL; list = list->next)
 	{
-		if (list->owner->s.v.health <= 0)
+		if (list->state_flags & ANTILAG_FL_REWOUND)
 			continue;
 
 		list->state_flags = ANTILAG_FL_REWOUND;
@@ -714,12 +1152,15 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 
 	for (list = antilag_list_world; list != NULL; list = list->next)
 	{
+		if (list->state_flags & ANTILAG_FL_REWOUND)
+			continue;
+
 		list->state_flags = ANTILAG_FL_REWOUND;
 		VectorCopy(list->owner->s.v.origin, list->held_origin);
 		VectorCopy(list->owner->s.v.velocity, list->held_velocity);
 	}
 
-	///*
+	/*
 	vec3_t old_org;
 	VectorCopy(owner->s.v.origin, old_org);
 	antilag_lagmove_all_nohold(owner, ms, true);
@@ -755,6 +1196,7 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	}
 	//
 
+	VectorCopy(e->s.v.origin, e->pos1);
 
 	// actual step through
 	while (current_time < g_globalvars.time)

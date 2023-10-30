@@ -490,9 +490,27 @@ float trap_GetExtField_f(gedict_t *ed, const char *fieldname)
 
 void trap_SetSendNeeded(int subject, int flags, int to)
 {
+	if (!HASEXTENSION(G_SETSENDNEEDED))
+		return;
+
 	syscall(G_SETSENDNEEDED, subject, flags, to);
 }
 
+int trap_getModelIndex(const char *modelname, qbool queryonly)
+{
+	if (!HASEXTENSION(G_GETMODELINDEX))
+		return 0;
+
+	return syscall(G_GETMODELINDEX, modelname, queryonly);
+}
+
+int trap_getSoundIndex(const char *sample, qbool queryonly)
+{
+	if (!HASEXTENSION(G_GETSOUNDINDEX))
+		return 0;
+
+	return syscall(G_GETSOUNDINDEX, sample, queryonly);
+}
 
 #ifdef FTESV
 void trap_changelevelHub(const char *name, const char *entityname, const char *startspot)

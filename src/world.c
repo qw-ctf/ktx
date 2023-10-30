@@ -1716,6 +1716,7 @@ void StartFrame(int time)
 	{
 		SecondFrame();
 		FixRules();
+		WPredict_Initialize();
 	}
 
 	FixNoSpecs(); // if no players left turn off "no spectators" mode

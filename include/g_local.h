@@ -202,10 +202,14 @@ enum
 	G_CLIENTSTAT,
 	G_POINTERSTAT,
 	#endif
+	G_GETMODELINDEX,
+	G_GETSOUNDINDEX,
 	G_EXTENSIONS_LAST
 };
-extern qbool haveextensiontab[G_EXTENSIONS_LAST-G_EXTENSIONS_FIRST];
-#define HAVEEXTENSION(idx) haveextensiontab[(idx) - G_EXTENSIONS_FIRST]
+
+extern int extensionindex[G_EXTENSIONS_LAST - G_EXTENSIONS_FIRST];
+#define HASEXTENSION(idx) (extensionindex[(idx) - G_EXTENSIONS_FIRST] >= 0)
+#define EXTENSION(idx) (extensionindex[(idx) - G_EXTENSIONS_FIRST])
 
 #define DEATHTYPE( _dt_, _dt_str_ ) _dt_,
 typedef enum
@@ -451,11 +455,14 @@ char* make_dots(char *dots, size_t dots_len, int cmd_max_len, char *cmd);
 #define PRDFL_COILGUN	2
 #define PRDFL_FORCEOFF	255
 extern float	time_corrected;
+void			WPredict_Initialize();
+qbool			WeaponDefinition_SendEntity(gedict_t *to, int sendflags);
 void			antilag_lagmove(antilag_t *data, float goal_time);
 void			antilag_lagmove_all(gedict_t *e, float goal_time);
 void			antilag_lagmove_all_hitscan(gedict_t *e);
 void			antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e);
 void			antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e);
+void			antilag_platform_move(antilag_t *list, float ms);
 void			antilag_unmove_all(void);
 void			antilag_clearflags_all(void);
 int				antilag_getseek(antilag_t *data, float ms);
@@ -559,7 +566,7 @@ void SpawnMeatSpray(vec3_t org, vec3_t vel);
 void W_FireAxe();
 void W_FireSpikes(float ox);
 void W_FireLightning();
-void LightningDamage(vec3_t p1, vec3_t p2, gedict_t *from, float damage);
+void LightningDamage(vec3_t p1, vec3_t p2, gedict_t *from, float damage, qbool is_antilagged);
 qbool W_CanSwitch(int wp, qbool warn);
 
 void FireBullets(float shotcount, vec3_t dir, float spread_x, float spread_y, float spread_z,

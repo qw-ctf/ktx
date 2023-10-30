@@ -784,6 +784,44 @@ typedef struct antilag_s {
 	struct antilag_s *next;
 } antilag_t;
 
+
+#define WEPPRED_MAXSTATES	32
+#define WEPPREDANIM_SOUND		0x0001
+#define WEPPREDANIM_PROJECTILE	0x0002
+#define WEPPREDANIM_LGBEAM		0x0004
+#define WEPPREDANIM_MUZZLEFLASH 0x0008
+#define WEPPREDANIM_DEFAULT		0x0010  // +attack will always be checked on this (unless current frame is +attack waiting
+#define WEPPREDANIM_ATTACK		0x0020
+#define WEPPREDANIM_BRANCH		0x0040
+#define WEPPREDANIM_MOREBYTES	0x0080	// mark if we need "full" 16 bits of flags
+#define WEPPREDANIM_SOUNDAUTO	0x0100 | WEPPREDANIM_MOREBYTES
+#define WEPPREDANIM_LTIME		0x0200 | WEPPREDANIM_MOREBYTES
+typedef struct weppredanim_s
+{
+	signed char		mdlframe;			// frame number in model
+	unsigned short	flags;				// flags from WEPPREDANIM
+	unsigned short	sound;				// WEPPREDANIM_SOUND: sound index to play
+	unsigned short	soundmask;			// WEPPREDANIM_SOUND: bitmask for sound (cl_predict_weaponsound)
+	unsigned short	projectile_model;	// WEPPREDANIM_PROJECTILE: model index of projectile
+	short			projectile_velocity[3]; // WEPPREDANIM_PROJECTILE: projectile velocity (v_right, v_forward, v_up)
+	byte			projectile_offset[3]; // WEPPREDANIM_PROJECTILE: projectile spawn position (v_right, v_forward, z)
+	byte			nextanim;			// next anim state index
+	byte			altanim;			// WEPPREDANIM_BRANCH: next anim state if condition is fullfilled
+	short			length;				// msec length of anim state (networked in 10ms increments)
+} weppredanim_t;
+
+typedef struct weppreddef_s
+{
+	unsigned short	modelindex;		// view model index
+	unsigned short	attack_time;	// attack time in msec
+
+	byte			impulse;		// impulse for equipping this weapon
+	int				itemflag;		// .items bit for this item
+
+	byte			anim_number;	// number of anim frames
+	weppredanim_t	anim_states[WEPPRED_MAXSTATES];
+} weppreddef_t;
+
 //typedef (void(*)(gedict_t *)) one_edict_func;
 typedef struct gedict_s
 {
@@ -1226,6 +1264,7 @@ typedef struct gedict_s
 
 // { antilag
 	struct antilag_s *antilag_data;
+	int weapon_index;
 	float client_time;
 	float client_lastupdated;
 	float client_nextthink;
