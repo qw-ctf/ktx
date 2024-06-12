@@ -142,6 +142,7 @@ intptr_t trap_SetUserInfo(intptr_t edn, const char *varname, const char *value, 
 intptr_t trap_movetogoal(float dist);
 
 void trap_VisibleTo(intptr_t viewer, intptr_t first, intptr_t len, byte *visible);
+float trap_checkextension(const char *varname);
 
 // Raw calls, use _i and _f helpers instead.
 void trap_SetExtField(gedict_t *ed, const char *fieldname, int val);

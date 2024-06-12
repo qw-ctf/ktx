@@ -200,6 +200,7 @@ void CheckTiming()
 
  =============================================================================
  */
+float intermission_precache = 0;
 float intermission_running = 0;
 float intermission_exittime = 0;
 gedict_t *intermission_spot = NULL;
@@ -552,11 +553,8 @@ gedict_t* FindIntermission()
 	return world;
 }
 
-void GotoNextMap()
+static void FindNextMap(char *newmap, int len)
 {
-	char newmap[64] =
-		{ 0 };
-
 	if (trap_cvar("samelevel"))
 	{
 		// if samelevel is set, stay on same level
@@ -564,11 +562,11 @@ void GotoNextMap()
 
 		if (!strnull(entityfile))
 		{
-			strlcpy(newmap, entityfile, sizeof(newmap));
+			strlcpy(newmap, entityfile, len);
 		}
 		else
 		{
-			strlcpy(newmap, mapname, sizeof(newmap));
+			strlcpy(newmap, mapname, len);
 		}
 	}
 	else
@@ -577,25 +575,46 @@ void GotoNextMap()
 
 		if (deathmatch || cvar("k_force_mapcycle"))
 		{
-			SelectMapInCycle(newmap, sizeof(newmap));
+			SelectMapInCycle(newmap, len);
 		}
 	}
 
 	if (!strnull(newmap))
 	{
-		changelevel(newmap);
+		return;
 	}
 	else if (!strnull(nextmap))
 	{
-		changelevel(nextmap);
+		strlcpy(newmap, nextmap, len);
 	}
 	else if (!strnull(mapname))
 	{
-		changelevel(mapname);
+		strlcpy(newmap, mapname, len);
 	}
 	else
 	{
-		changelevel("start");
+		strlcpy(newmap, "start", len);
+	}
+}
+
+void GotoNextMap()
+{
+	char newmap[64] = { 0 };
+	FindNextMap(newmap, sizeof(newmap));
+	changelevel(newmap);
+}
+
+void PreCacheNextMap()
+{
+	G_bprint( PRINT_HIGH, "Trying to precache map\n");
+	//if (trap_checkextension("DP_SV_PRECACHEANYTIME"))
+	{
+		char newmap[64] = { 0 };
+		char fullname[80] = { 0 };
+		G_bprint( PRINT_HIGH, "Precache supported!\n");
+		FindNextMap(newmap, sizeof(newmap));
+		snprintf(fullname, sizeof(fullname), "maps/%s.bsp", newmap);
+		trap_precache_model(fullname);
 	}
 }
 
@@ -610,6 +629,16 @@ void IntermissionThink()
 {
 	if (g_globalvars.time < intermission_exittime)
 	{
+		if (!intermission_precache)
+		{
+			// If the server supports mid-game precaching, start loading the next
+			// map while players are checking the results
+			float precache_delay = (intermission_exittime - max(1, cvar("demo_scoreslength")));
+			if (g_globalvars.time > precache_delay) {
+				PreCacheNextMap();
+				intermission_precache = 1;
+			}
+		}
 		return;
 	}
 
@@ -626,6 +655,8 @@ void IntermissionThink()
 	{
 		ExitIntermission();
 	}
+
+	intermission_precache = 0;
 }
 
 /*

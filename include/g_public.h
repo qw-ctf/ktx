@@ -142,6 +142,7 @@ typedef enum
 	G_SETUSERINFO,
 	G_MOVETOGOAL,
 	G_VISIBLETO,
+	G_CHECKEXTENSION = 99,
 } gameImport_t;
 
 // !!! new things comes to end of list !!!
