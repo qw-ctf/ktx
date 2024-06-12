@@ -466,6 +466,13 @@ void trap_VisibleTo(intptr_t viewer, intptr_t first, intptr_t len, byte *visible
 	syscall(G_VISIBLETO, viewer, first, len, (intptr_t) visible);
 }
 
+float trap_checkextension(const char *varname)
+{
+	fi_t ret;
+	ret._int = syscall(G_CHECKEXTENSION, (intptr_t) varname);
+	return ret._float;
+}
+
 void trap_SetExtField(gedict_t *ed, const char *fieldname, int val)
 {
 	syscall(G_SETEXTFIELD, (intptr_t)ed, (intptr_t)fieldname, val);

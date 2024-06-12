@@ -106,6 +106,7 @@ equ		trap_SetUserInfo -92
 equ		trap_movetogoal -93
 
 equ		trap_VisibleTo -94
+equ		trap_checkextension -99
 
 equ		trap_SetExtField       -257
 equ		trap_GetExtField       -258

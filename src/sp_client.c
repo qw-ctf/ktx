@@ -30,6 +30,7 @@ void ExitIntermission()
 		return;
 	}
 
+	// enforce a wait time before allowing changelevel
 	intermission_exittime = g_globalvars.time + 1;
 	intermission_running++;
 

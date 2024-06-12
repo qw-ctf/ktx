@@ -501,6 +501,7 @@ extern int modelindex_eyes, modelindex_player;
 
 void set_nextmap(char *map);
 void GotoNextMap();
+void PreCacheNextMap();
 
 qbool CheckRate(gedict_t *p, char *newrate);
 
