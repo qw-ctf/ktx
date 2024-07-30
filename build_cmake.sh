@@ -15,6 +15,7 @@ DEFAULT_PLATFORMS=(
 	windows-x64
 	windows-x86
 	qvm
+	# macos, no cross-compilation
 )
 PLATFORMS=("${@:-${DEFAULT_PLATFORMS[@]}}")
 
@@ -49,6 +50,10 @@ for name in "${PLATFORMS[@]}"; do
 	"qvm" ) # Build QVM library.
 		cmake -B "${P}" -S . ${BOT_SUPPORT} ${BUILD}
 		cmake --build "${P}" --target qvm ${V}
+	;;
+	"macos" )
+		cmake -B "${P}" -S . ${BOT_SUPPORT} ${BUILD} -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+		cmake --build "${P}" ${V}
 	;;
 	* ) # Build native library.
 		cmake -B "${P}" -S . ${BOT_SUPPORT} ${BUILD} -DCMAKE_TOOLCHAIN_FILE="tools/cross-cmake/${name}.cmake"
