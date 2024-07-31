@@ -14,7 +14,7 @@ jobs:
         run: |
           cmake -B builddir -G "Visual Studio 17 2022"
           cmake --build builddir
-          find builddir
+          dir /S /B builddir
 
   build:
     runs-on: ubuntu-latest
