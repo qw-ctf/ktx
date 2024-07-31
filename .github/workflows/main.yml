@@ -3,6 +3,19 @@ name: main
 on: [ push, pull_request, workflow_dispatch ]
 
 jobs:
+  mstest:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          cmake -B builddir -G "Visual Studio 17 2022"
+          cmake --build builddir
+          find builddir
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
