@@ -10,15 +10,6 @@
 #define PROJECTILE_OWNER        (1 << 3)
 #define PROJECTILE_SPAWN_ORIGIN (1 << 4)
 
-#define WEAPONINFO_INDEX        (1 << 0)
-#define WEAPONINFO_AMMO_SHELLS  (1 << 1)
-#define WEAPONINFO_AMMO_NAILS   (1 << 2)
-#define WEAPONINFO_AMMO_ROCKETS (1 << 3)
-#define WEAPONINFO_AMMO_CELLS   (1 << 4)
-#define WEAPONINFO_ATTACK       (1 << 5)
-#define WEAPONINFO_TIMING       (1 << 6)
-#define WEAPONINFO_PRED_PING    (1 << 7)
-
 #define WEAPONDEF_INIT  (1 << 0)
 #define WEAPONDEF_FLAGS (1 << 1)
 #define WEAPONDEF_ANIM  (1 << 2)
@@ -157,7 +148,7 @@ void EntUpdate_Projectile(float is_new)
 {
 	int sendflags = readbyte();
 
-	if (sendflags & 1)
+	if (sendflags & PROJECTILE_ORIGIN)
 	{
 		self.s_origin = [readcoord(), readcoord(), readcoord()];
 		self.velocity = [readcoord(), readcoord(), readcoord()];
@@ -165,7 +156,7 @@ void EntUpdate_Projectile(float is_new)
 	}
 
 
-	if (sendflags & 2)
+	if (sendflags & PROJECTILE_MODEL)
 	{
 		// Reki: note- we need to do this monstrosity of a setmodel because setmodelindex doesn't return modelflags
 		setmodel(self, modelnameforindex(readshort()));
@@ -173,14 +164,14 @@ void EntUpdate_Projectile(float is_new)
 	}
 
 
-	if (sendflags & 4)
+	if (sendflags & PROJECTILE_ANGLES)
 	{
 		self.angles = [readangle(), readangle(), readangle()];
 	}
 
 
 	float antilag_time = 0;
-	if (sendflags & 8)
+	if (sendflags & PROJECTILE_OWNER)
 	{
 		self.ownnum = readentitynum();
 		// antilag_time = (float)readbyte() / 255;

@@ -1,4 +1,11 @@
-
+#define WEAPONINFO_INDEX        (1 << 0)
+#define WEAPONINFO_AMMO_SHELLS  (1 << 1)
+#define WEAPONINFO_AMMO_NAILS   (1 << 2)
+#define WEAPONINFO_AMMO_ROCKETS (1 << 3)
+#define WEAPONINFO_AMMO_CELLS   (1 << 4)
+#define WEAPONINFO_ATTACK       (1 << 5)
+#define WEAPONINFO_TIMING       (1 << 6)
+#define WEAPONINFO_PRED_PING    (1 << 7)
 
 #define	IT_SHOTGUN              1
 #define	IT_SUPER_SHOTGUN        2
@@ -1053,35 +1060,35 @@ void EntUpdate_WeaponPred(float is_new)
 
 	weapon_server.state = WEPSTATE_FRESH;
 
-	if (sendflags & 1)
+	if (sendflags & WEAPONINFO_INDEX)
 	{
 		weapon_server.impulse = readbyte();
 		weapon_server.weapon = readbyte();
 	}
-	if (sendflags & 2)
+	if (sendflags & WEAPONINFO_AMMO_SHELLS)
 		weapon_server.ammo_shells = readbyte();
-	if (sendflags & 4)
+	if (sendflags & WEAPONINFO_AMMO_NAILS)
 		weapon_server.ammo_nails = readbyte();
-	if (sendflags & 8)
+	if (sendflags & WEAPONINFO_AMMO_ROCKETS)
 		weapon_server.ammo_rockets = readbyte();
-	if (sendflags & 16)
+	if (sendflags & WEAPONINFO_AMMO_CELLS)
 		weapon_server.ammo_cells = readbyte();
 
 
-	if (sendflags & 32)
+	if (sendflags & WEAPONINFO_ATTACK)
 	{
 		weapon_server.attack_finished = readfloat();
 		weapon_server.client_nextthink = readfloat();
 		weapon_server.client_thinkindex = readbyte();
 	}
 
-	if (sendflags & 64)
+	if (sendflags & WEAPONINFO_TIMING)
 	{
 		weapon_server.client_time = readfloat();
 		weapon_server.frame = readbyte();
 	}
 
-	if (sendflags & 128)
+	if (sendflags & WEAPONINFO_PRED_PING)
 	{
 		weapon_server.client_predflags = readbyte();
 		weapon_server.client_ping = readbyte() / 1000;
