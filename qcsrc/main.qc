@@ -121,35 +121,35 @@ float Predraw_Projectile()
 
 void EntUpdate_Projectile(float is_new)
 {
-	int sendflags = ReadByte();
+	int sendflags = readbyte();
 
 	if (sendflags & 1)
 	{
-		self.s_origin = [ReadCoord(), ReadCoord(), ReadCoord()];
-		self.velocity = [ReadCoord(), ReadCoord(), ReadCoord()];
-		self.s_time = ReadFloat();
+		self.s_origin = [readcoord(), readcoord(), readcoord()];
+		self.velocity = [readcoord(), readcoord(), readcoord()];
+		self.s_time = readfloat();
 	}
 
 
 	if (sendflags & 2)
 	{
 		// Reki: note- we need to do this monstrosity of a setmodel because setmodelindex doesn't return modelflags
-		setmodel(self, modelnameforindex(ReadShort()));
-		self.effects = ReadShort();
+		setmodel(self, modelnameforindex(readshort()));
+		self.effects = readshort();
 	}
 
 
 	if (sendflags & 4)
 	{
-		self.angles = [ReadAngle(), ReadAngle(), ReadAngle()];
+		self.angles = [readangle(), readangle(), readangle()];
 	}
 
 
 	float antilag_time = 0;
 	if (sendflags & 8)
 	{
-		self.ownnum = ReadEntityNum();
-		antilag_time = (float)ReadByte() / 255;
+		self.ownnum = readentitynum();
+		antilag_time = (float)readbyte() / 255;
 	}
 
 
@@ -207,7 +207,7 @@ float(float entnum, float channel, string soundname, float vol, float attenuatio
 
 void(float is_new) CSQC_Ent_Update
 {
-	int ent_type = ReadByte();
+	int ent_type = readbyte();
 
 	switch (ent_type)
 	{

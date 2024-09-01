@@ -1049,42 +1049,42 @@ float WeaponPred_Think()
 
 void EntUpdate_WeaponPred(float is_new)
 {
-	float sendflags = ReadByte();
+	float sendflags = readbyte();
 
 	weapon_server.state = WEPSTATE_FRESH;
 
 	if (sendflags & 1)
 	{
-		weapon_server.impulse = ReadByte();
-		weapon_server.weapon = ReadShort();
+		weapon_server.impulse = readbyte();
+		weapon_server.weapon = readshort();
 	}
 	if (sendflags & 2)
-		weapon_server.ammo_shells = ReadByte();
+		weapon_server.ammo_shells = readbyte();
 	if (sendflags & 4)
-		weapon_server.ammo_nails = ReadByte();
+		weapon_server.ammo_nails = readbyte();
 	if (sendflags & 8)
-		weapon_server.ammo_rockets = ReadByte();
+		weapon_server.ammo_rockets = readbyte();
 	if (sendflags & 16)
-		weapon_server.ammo_cells = ReadByte();
+		weapon_server.ammo_cells = readbyte();
 
 
 	if (sendflags & 32)
 	{
-		weapon_server.attack_finished = ReadFloat();
-		weapon_server.client_nextthink = ReadFloat();
-		weapon_server.client_thinkindex = ReadByte();
+		weapon_server.attack_finished = readfloat();
+		weapon_server.client_nextthink = readfloat();
+		weapon_server.client_thinkindex = readbyte();
 	}
 
 	if (sendflags & 64)
 	{
-		weapon_server.client_time = ReadFloat();
-		weapon_server.frame = ReadByte();
+		weapon_server.client_time = readfloat();
+		weapon_server.frame = readbyte();
 	}
 
 	if (sendflags & 128)
 	{
-		weapon_server.client_predflags = ReadByte();
-		weapon_server.client_ping = ReadByte() / 1000;
+		weapon_server.client_predflags = readbyte();
+		weapon_server.client_ping = readbyte() / 1000;
 	}
 
 	if (is_new)
