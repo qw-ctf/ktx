@@ -530,7 +530,7 @@ void FireInstaBullet(vec3_t dir, deathType_t deathtype)
 
 	VectorCopy(self->s.v.origin, tmp);	//tmp = self->s.v.origin + '0 0 16';
 	tmp[2] += 16;
-	CoilgunTrail(tmp, src, self - world, iKey(self, "railcolor"));
+	CoilgunTrail(tmp, src, (int)(self - world), iKey(self, "railcolor"));
 }
 
 /*

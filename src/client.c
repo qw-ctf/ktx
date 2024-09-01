@@ -2942,7 +2942,7 @@ void wp_wrap_cat(char *s, char *buf, int size)
 {
 	const int max_line = 40; // 320 / 8 = 40
 	char *n_pos = strrchr(buf, '\n');
-	int s_len = strlen(s), b_len = strlen(n_pos ? n_pos : buf);
+	size_t s_len = strlen(s), b_len = strlen(n_pos ? n_pos : buf);
 
 	strlcat(buf, (s_len + b_len > max_line) ? "\n" : " ", size);
 	strlcat(buf, s, size);
@@ -3006,7 +3006,7 @@ void Print_Wp_Stats(void)
 
 	if ((i = lw_x) > 0)
 	{
-		int offset = strlen(buf);
+		size_t offset = strlen(buf);
 		i = bound(0, i, (int)sizeof(buf) - offset - 1);
 		memset((void*)(buf + offset), (int)' ', i);
 		buf[i + offset] = 0;
@@ -3099,7 +3099,7 @@ void Print_Wp_Stats(void)
 
 	if ((i = lw_x) < 0)
 	{
-		int offset = strlen(buf);
+		size_t offset = strlen(buf);
 
 		i = bound(0, -i, (int)sizeof(buf) - offset - 1);
 		memset((void*)(buf + offset), (int)' ', i);
@@ -3108,7 +3108,7 @@ void Print_Wp_Stats(void)
 
 	if ((i = lw) < 0)
 	{
-		int offset = strlen(buf);
+		size_t offset = strlen(buf);
 
 		i = bound(0, -i, (int)sizeof(buf) - offset - 1);
 		memset((void*)(buf + offset), (int)'\n', i);
@@ -3132,8 +3132,8 @@ void Print_Scores(void)
 {
 	char buf[1024] =
 		{ 0 }, *last_va;
-
-	int i, minutes = 0, seconds = 0, ts = 0, es = 0, ls = iKey(self, "ls")
+	size_t i;
+	int minutes = 0, seconds = 0, ts = 0, es = 0, ls = iKey(self, "ls")
 			+ (iKey(self, "ktpl") ? 12 : 0);
 
 	qbool sc_ok = false;
@@ -3324,7 +3324,7 @@ void Print_Scores(void)
 	if ((i = (isCTF() ? sizeof("  [-zzzzz]") - 1 : sizeof("  t:xxxxx  e:yyyyy  [-zzzzz]") - 1)
 			- strlen(last_va)) > 0)
 	{
-		int offset = strlen(buf);
+		size_t offset = strlen(buf);
 
 		i = bound(0, i, (int)sizeof(buf) - offset - 1);
 		memset((void*)(buf + offset), (int)' ', i);
@@ -3333,7 +3333,7 @@ void Print_Scores(void)
 
 	if ((i = ls) < 0)
 	{
-		int offset = strlen(buf);
+		size_t offset = strlen(buf);
 
 		i = bound(0, -i, (int)sizeof(buf) - offset - 1);
 		memset((void*)(buf + offset), (int)'\n', i);

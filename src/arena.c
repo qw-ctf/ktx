@@ -509,7 +509,7 @@ void PrintStats(gedict_t *who)
 
 	if ((i = iKey(who, "lra")) < 0)
 	{
-		int offset = strlen(buf);
+		size_t offset = strlen(buf);
 
 		i = bound(0, -i, (int)sizeof(buf) - offset - 1);
 		memset((void*)(buf + offset), (int)'\n', i);
@@ -753,7 +753,7 @@ void ra_PlayerStats(void)
 	for (p = world; (p = find_plr(p));)
 	{
 		G_sprint(self, 2, "%.10s", p->netname); // player name
-		for (i = strlen(p->netname); i < pL; i++)
+		for (i = (int) strlen(p->netname); i < pL; i++)
 		{
 			G_sprint(self, 2, " "); // dynamically pad name
 		}

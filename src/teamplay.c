@@ -1600,8 +1600,8 @@ void LocationInitialise(void)
 				{
 					if (!strncmp(stub, locmacros[j].name, strlen(locmacros[j].name)))
 					{
-						int old_length = 10 + strlen(locmacros[j].name);
-						int new_length = strlen(locmacros[j].value);
+						size_t old_length = 10 + strlen(locmacros[j].name);
+						size_t new_length = strlen(locmacros[j].value);
 
 						if (new_length < old_length)
 						{

@@ -564,7 +564,7 @@ qbool G_CallSpawn(gedict_t *ent)
 char* G_NewString(const char *string)
 {
 	char *newb, *new_p;
-	int i, l;
+	size_t i, l;
 
 	l = strlen(string) + 1;
 
@@ -729,10 +729,9 @@ void G_SpawnGEntityFromSpawnVars(void)
  */
 char* G_AddSpawnVarToken(const char *string)
 {
-	int l;
 	char *dest;
 
-	l = strlen(string);
+	size_t l = strlen(string);
 	if ((numSpawnVarChars + l + 1) > MAX_SPAWN_VARS_CHARS)
 	{
 		G_Error("G_AddSpawnVarToken: MAX_SPAWN_CHARS");

@@ -142,8 +142,8 @@ char* xml_string(const char *original)
 {
 	static char string[MAX_STRINGS][1024];
 	static int index = 0;
-	int length = strlen(original);
-	int newlength = 0;
+	size_t length = strlen(original);
+	size_t newlength = 0;
 	int i = 0;
 
 	index %= MAX_STRINGS;

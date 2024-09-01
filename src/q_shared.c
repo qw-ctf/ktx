@@ -384,9 +384,7 @@ char* Q_strupr(char *s1)
 // never goes past bounds or leaves without a terminating 0
 void Q_strcat(char *dest, int size, const char *src)
 {
-	int l1;
-
-	l1 = strlen(dest);
+	size_t l1 = strlen(dest);
 	if (l1 >= size)
 	{
 		G_Error("Q_strcat: already overflowed");

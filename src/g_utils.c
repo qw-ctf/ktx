@@ -2808,7 +2808,7 @@ void visible_to(gedict_t *viewer, gedict_t *first, int len, byte *visible)
 
 // Work around for the fact that QVM dos not support ".*s" in printf() family functions.
 // It retuns dots array filled with dots, amount of dots depends of how long cmd name and longest cmd name.
-char* make_dots(char *dots, size_t dots_len, int cmd_max_len, char *cmd)
+char* make_dots(char *dots, size_t dots_len, size_t cmd_max_len, char *cmd)
 {
 	int len = cmd_max_len - strlen(cmd);
 	len = bound(0, len, dots_len - 1);

@@ -58,7 +58,7 @@ static char ml_buf[MAX_MAPS * 32] =
 // NOTE: we did not check is this map alredy in list or not...
 static void Map_AddMapToList(char *name)
 {
-	int l;
+	size_t l;
 
 	if (strnull(name))
 	{
@@ -83,7 +83,7 @@ static void Map_AddMapToList(char *name)
 void GetCustomEntityMapsForDirectory(char *directory)
 {
 	char *s, name[32], *sep;
-	int i, cnt, l, m;
+	int i, cnt, m;
 
 	ml_buf[0] = 0;
 
@@ -93,7 +93,7 @@ void GetCustomEntityMapsForDirectory(char *directory)
 
 	for (i = 0, s = ml_buf; i < cnt && s < ml_buf + sizeof(ml_buf); ++i)
 	{
-		l = strlen(s);
+		size_t l = strlen(s);
 
 		if (FTE_sv)
 		{
@@ -111,7 +111,7 @@ void GetCustomEntityMapsForDirectory(char *directory)
 		if (sep)
 		{
 			int baseMapFound = 0, duplicateFound = 0;
-			int mapNameLength;
+			size_t mapNameLength;
 
 			// copy
 			strlcpy(name, s, min(sizeof(name), l));
@@ -178,7 +178,7 @@ void AddFixedMaps(void)
 void GetMapList(void)
 {
 	char *s, name[32];
-	int i, cnt, l;
+	int i, cnt;
 
 	ml_buf[0] = 0;
 
@@ -201,7 +201,7 @@ void GetMapList(void)
 
 	for (i = 0, s = ml_buf; i < cnt && s < ml_buf + sizeof(ml_buf); i++)
 	{
-		l = strlen(s);
+		size_t l = strlen(s);
 
 		if (FTE_sv)
 		{

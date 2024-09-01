@@ -21,7 +21,7 @@
 #include "g_local.h"
 #include "stats.h"
 
-int max_cmd_len = 0;
+size_t max_cmd_len = 0;
 
 qbool is_rules_change_allowed(void);
 void SendMessage(char *name);
@@ -3466,7 +3466,8 @@ void PlayerStats(void)
 {
 	gedict_t *p, *p2;
 	char *tmp, *stats;
-	int i, pL = 0, tL = 0;
+	size_t i;
+	int pL = 0, tL = 0;
 
 	if (isRA())
 	{
@@ -4041,7 +4042,7 @@ ok:
 
 	if ((i = ln) < 0)
 	{
-		int offset = strlen(buf);
+		size_t offset = strlen(buf);
 
 		i = bound(0, -i, (int)sizeof(buf) - offset - 1);
 		memset((void*)(buf + offset), (int)'\n', i);
@@ -7878,7 +7879,7 @@ void mv_playback(void)
 		fp = ftmp;
 	}
 
-	i = fp - self->plrfrms;
+	i = (int)(fp - self->plrfrms);
 
 	if ((i == self->pb_frame) || (fp->time > self->pb_time))
 	{
