@@ -1,6 +1,40 @@
-#define NENT_PROJECTILE     10
-#define NENT_WEAPONPRED     20
+#define EZCSQC_WEAPONINFO       1
+#define EZCSQC_PROJECTILE       2
+#define EZCSQC_PLAYER           3
+#define EZCSQC_WEAPONDEF        4
+#define EZCSQC_HUDELEMENT       32
 
+#define PROJECTILE_ORIGIN       (1 << 0)
+#define PROJECTILE_MODEL        (1 << 1)
+#define PROJECTILE_ANGLES       (1 << 2)
+#define PROJECTILE_OWNER        (1 << 3)
+#define PROJECTILE_SPAWN_ORIGIN (1 << 4)
+
+#define WEAPONINFO_INDEX        (1 << 0)
+#define WEAPONINFO_AMMO_SHELLS  (1 << 1)
+#define WEAPONINFO_AMMO_NAILS   (1 << 2)
+#define WEAPONINFO_AMMO_ROCKETS (1 << 3)
+#define WEAPONINFO_AMMO_CELLS   (1 << 4)
+#define WEAPONINFO_ATTACK       (1 << 5)
+#define WEAPONINFO_TIMING       (1 << 6)
+#define WEAPONINFO_PRED_PING    (1 << 7)
+
+#define WEAPONDEF_INIT  (1 << 0)
+#define WEAPONDEF_FLAGS (1 << 1)
+#define WEAPONDEF_ANIM  (1 << 2)
+
+#define WEPPRED_MAXSTATES   32
+
+#define WEPPREDANIM_SOUND       0x0001
+#define WEPPREDANIM_PROJECTILE  0x0002
+#define WEPPREDANIM_LGBEAM      0x0004
+#define WEPPREDANIM_MUZZLEFLASH 0x0008
+#define WEPPREDANIM_DEFAULT     0x0010  // +attack will always be checked on this (unless current frame is +attack waiting
+#define WEPPREDANIM_ATTACK      0x0020
+#define WEPPREDANIM_BRANCH      0x0040
+#define WEPPREDANIM_MOREBYTES   0x0080  // mark if we need "full" 16 bits of flags
+#define WEPPREDANIM_SOUNDAUTO   0x0100
+#define WEPPREDANIM_LTIME       0x0200  // use hacky ltime sound cooldown
 
 string	autocvar_r_rockettrail;
 string	autocvar_r_grenadetrail;
@@ -149,9 +183,15 @@ void EntUpdate_Projectile(float is_new)
 	if (sendflags & 8)
 	{
 		self.ownnum = readentitynum();
-		antilag_time = (float)readbyte() / 255;
+		// antilag_time = (float)readbyte() / 255;
 	}
 
+	if (sendflags & PROJECTILE_SPAWN_ORIGIN) {
+		// used for trail
+		readcoord(); // spawn origin[0]
+		readcoord(); // spawn origin[1]
+		readcoord(); // spawn origin[2]
+	}
 
 	if (is_new)
 	{
@@ -205,14 +245,68 @@ float(float entnum, float channel, string soundname, float vol, float attenuatio
 }
 
 
+void(float isnew) EntUpdate_WeaponDef =
+{
+	int sendflags = readbyte();
+
+	int weapon_index = readbyte();
+
+	if (sendflags & WEAPONDEF_INIT) {
+		readshort(); // attack_time
+		readshort(); // modelindex
+	}
+
+	if (sendflags & WEAPONDEF_FLAGS) {
+		readbyte(); // impulse
+		readbyte(); // itemflag
+	}
+
+	if (sendflags & WEAPONDEF_ANIM) {
+		int anim_number = readbyte();
+		for (int i = 0; i < anim_number; i++) {
+			readbyte(); // mdlframe
+			int anim_flags = readbyte();
+
+			if (anim_flags & WEPPREDANIM_MOREBYTES) {
+				anim_flags |= readbyte() << 8;
+			}
+
+			if (anim_flags & WEPPREDANIM_SOUND) {
+				readshort(); // sound
+				readshort(); // soundmask
+			}
+
+			if (anim_flags & WEPPREDANIM_PROJECTILE) {
+				readshort(); // projectile model
+				for (int k = 0; k < 3; k++) {
+					readshort(); // velocity
+				}
+				for (int k = 0; k < 3; k++) {
+					readbyte(); // offset
+				}
+			}
+
+			readbyte(); // next anim
+
+			if (anim_flags & WEPPREDANIM_BRANCH) {
+				readbyte();
+			}
+
+			readbyte(); // anim length
+		}
+	}
+};
+
+
 void(float is_new) CSQC_Ent_Update
 {
 	int ent_type = readbyte();
 
 	switch (ent_type)
 	{
-		case NENT_PROJECTILE: EntUpdate_Projectile(is_new); break;
-		case NENT_WEAPONPRED: EntUpdate_WeaponPred(is_new); break;
+		case EZCSQC_PROJECTILE: EntUpdate_Projectile(is_new); break;
+		case EZCSQC_WEAPONINFO: EntUpdate_WeaponPred(is_new); break;
+		case EZCSQC_WEAPONDEF: EntUpdate_WeaponDef(is_new); break;
 	}
 }
 

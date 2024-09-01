@@ -1056,7 +1056,7 @@ void EntUpdate_WeaponPred(float is_new)
 	if (sendflags & 1)
 	{
 		weapon_server.impulse = readbyte();
-		weapon_server.weapon = readshort();
+		weapon_server.weapon = readbyte();
 	}
 	if (sendflags & 2)
 		weapon_server.ammo_shells = readbyte();
