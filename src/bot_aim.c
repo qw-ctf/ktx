@@ -234,7 +234,6 @@ static void CalculateVolatility(gedict_t *self)
 {
 	float volatility = self->fb.skill.current_volatility;
 	gedict_t *opponent = self->fb.look_object;
-	int vol_flags = 0;
 
 	if (opponent != self->fb.prev_look_object)
 	{
@@ -242,8 +241,6 @@ static void CalculateVolatility(gedict_t *self)
 		volatility = self->fb.skill.initial_volatility;
 		self->fb.min_fire_time = g_globalvars.time + self->fb.skill.awareness_delay;
 		self->fb.last_rndaim_time = 0;
-
-		vol_flags = 1;
 	}
 	else
 	{
@@ -260,7 +257,6 @@ static void CalculateVolatility(gedict_t *self)
 									self->fb.skill.ownspeed_volatility_threshold))
 		{
 			volatility += self->fb.skill.ownspeed_volatility;
-			vol_flags = 2;
 		}
 
 		// Speed penalty
@@ -268,7 +264,6 @@ static void CalculateVolatility(gedict_t *self)
 									self->fb.skill.enemyspeed_volatility_threshold))
 		{
 			volatility += self->fb.skill.enemyspeed_volatility;
-			vol_flags |= 4;
 		}
 
 		VectorNormalize(bot_direction);
@@ -277,7 +272,6 @@ static void CalculateVolatility(gedict_t *self)
 
 		// Direction penalty ... if we're going in same direction, no penalty
 		volatility += (1 - same_direction) * (self->fb.skill.enemydirection_volatility / 2);
-		vol_flags |= 8;
 
 		// Pain penalty - if they are being attacked, not as accurate
 		if (!lgc_enabled() && self->fb.last_hurt && ((g_globalvars.time - self->fb.last_hurt) < 1.0f))
