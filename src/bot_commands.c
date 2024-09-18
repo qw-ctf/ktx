@@ -45,7 +45,7 @@ static qbool customised_skill = false;
 
 // If the marker/path flag isn't set here, won't be included in .bot file
 #define EXTERNAL_MARKER_PATH_FLAGS (WATERJUMP_ | DM6_DOOR | ROCKET_JUMP | JUMP_LEDGE | VERTICAL_PLATFORM | LOOK_BUTTON)
-#define EXTERNAL_MARKER_FLAGS (UNREACHABLE | MARKER_IS_DM6_DOOR | MARKER_FIRE_ON_MATCH_START | MARKER_DOOR_TOUCHABLE | MARKER_ESCAPE_ROUTE | MARKER_NOTOUCH)
+#define EXTERNAL_MARKER_FLAGS (UNREACHABLE | MARKER_IS_DM6_DOOR | MARKER_FIRE_ON_MATCH_START | MARKER_DOOR_TOUCHABLE | MARKER_ESCAPE_ROUTE | MARKER_NOTOUCH | MARKER_FLAG1_DEFEND | MARKER_FLAG2_DEFEND )
 
 #define MIN_DISTANCE_BETWEEN_MARKERS 30
 
@@ -288,6 +288,7 @@ void FrogbotsAddbot(int skill_level, const char *specificteam, qbool error_messa
 			int entity = 0;
 			int topColor = 0;
 			int bottomColor = 0;
+			int ctfRole = -1;
 			const char *teamName = specificteam;
 
 			customised_skill = SetAttributesBasedOnSkill(skill_level);
@@ -322,6 +323,13 @@ void FrogbotsAddbot(int skill_level, const char *specificteam, qbool error_messa
 				topColor = team->topColor;
 				bottomColor = team->bottomColor;
 				teamName = team->name;
+
+				if (isCTF())
+				{
+					// Per-team round-robin so each side gets its own attack/
+					// midfield/defend spread regardless of overall join order.
+					ctfRole = team->bots % 3;
+				}
 			}
 			else
 			{
@@ -352,6 +360,10 @@ void FrogbotsAddbot(int skill_level, const char *specificteam, qbool error_messa
 			trap_SetBotUserInfo(entity, "team", teamName, 0);
 			G_bprint(2, "skill &cf00%d&r\n", self->fb.skill.skill_level);
 			SetAttribs(&g_edicts[entity], customised_skill);
+			if (ctfRole >= 0)
+			{
+				g_edicts[entity].fb.skill.ctf_role = ctfRole;
+			}
 			trap_SetBotUserInfo(entity, "k_nick", bots[i].name, 0);
 			trap_SetBotUserInfo(entity, "*skill", skill_level_str, SETUSERINFO_STAR);
 
@@ -630,6 +642,7 @@ static void FrogbotsDebug(void)
 									zone->next_rj->fb.index + 1, zone->next_rj->classname,
 									zone->rj_time);
 					}
+
 				}
 
 				G_sprint(self, 2, "Goals:\n");
@@ -2514,13 +2527,6 @@ void FrogbotsCommand(void)
 			if (isRACE())
 			{
 				G_sprint(self, PRINT_HIGH, "Cannot enable bots while in race mode\n");
-
-				return;
-			}
-
-			if (isCTF())
-			{
-				G_sprint(self, PRINT_HIGH, "Cannot enable bots while in CTF mode\n");
 
 				return;
 			}

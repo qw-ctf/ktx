@@ -428,7 +428,7 @@ typedef void (*fb_entity_funcref_t)(struct gedict_s* item);
 #define NUMBER_PATHS	8
 #endif
 #ifndef NUMBER_SUBZONES
-#define NUMBER_SUBZONES	32
+#define NUMBER_SUBZONES	128 // max markers per zone; raised from 32 for dense CTF maps
 #endif
 
 typedef struct fb_runaway_route_s {
@@ -535,6 +535,8 @@ typedef struct fb_botskill_s {
 	float combat_jump_chance;
 	float missile_dodge_time;				// minimum time in seconds before bot dodges missile
 
+	int   ctf_role;                         // attack, midfield or defense
+
 	qbool customised;						// if set, customised file
 
 	qbool wiggle_run_dmm4;					// if set, wiggle run on dmm4 (and up)
@@ -616,6 +618,7 @@ typedef struct fb_entvars_s {
 	// Goal evaluation
 	struct gedict_s* best_goal;
 	float best_goal_score;
+	float best_goal_desire;						// this bot's raw desire for best_goal (per-bot, unlike the shared saved_goal_desire)
 	float saved_goal_desire;					// the desire for the current goal entity
 	float saved_respawn_time;					// seconds until this item respawns (includes current bot's error)
 	float saved_goal_time;

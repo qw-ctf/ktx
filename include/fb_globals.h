@@ -5,6 +5,9 @@
 
 #define PATH_SCORE_NULL -1000000
 
+// Default value of fb.enemy_dist when BestEnemy found no enemy this frame.
+#define FB_NO_ENEMY_DIST 600
+
 // Travel time assigned to a link/route that can't be taken, treated as "no path"
 // by the route search (anything < TRAVEL_UNREACHABLE is considered reachable).
 #define TRAVEL_UNREACHABLE 1000000
@@ -97,6 +100,10 @@ extern gedict_t *dropper;
 #define FB_PREFER_ROCKET_LAUNCHER	1
 #define FB_PREFER_LIGHTNING_GUN		2
 
+#define FB_CTF_ROLE_ATTACK			0
+#define FB_CTF_ROLE_MIDFIELD		1
+#define FB_CTF_ROLE_DEFEND			2
+
 #define GAME_ENABLE_POWERUPS		1
 #define GAME_ENABLE_RUNES			2
 #define GAME_RUNE_RJ				4
@@ -161,6 +168,8 @@ extern gedict_t *dropper;
 #define MARKER_DYNAMICALLY_ADDED	256		// Added dynamically by server.  Do not include in .bot file generation
 #define MARKER_EXPLICIT_VIEWOFFSET	512		// Viewoffset has been set by map definition and should be included in .bot file generation
 #define MARKER_NOTOUCH				1024	// Not touchable - used when two markers on top of each other
+#define MARKER_FLAG1_DEFEND			2048	// Point used to defend flag 1 (red)
+#define MARKER_FLAG2_DEFEND			4096	// Point used to defend flag 2 (blue)
 #define MARKER_LOOK_BUTTON			8192	// A button can be shot from this marker - set automatically
 
 // Bot flags (FIXME: fb.state?  check.  consistent naming, comment with descriptions)
@@ -182,6 +191,7 @@ float boomstick_only(void);
 
 float CountTeams(void);
 qbool EnemyDefenceless(gedict_t *self);
+qbool EnemyHasFlag (gedict_t *self);
 
 qbool enemy_shaft_attack(gedict_t *self, gedict_t *enemy);
 float W_BestWeapon(void);
@@ -302,7 +312,7 @@ void SetMarkerPath(int source_marker, int path_index, int next_marker);
 void SetMarkerViewOffset(int marker, float zOffset);
 
 #define FROGBOT_PATH_FLAG_OPTIONS "w6rjval"
-#define FROGBOT_MARKER_FLAG_OPTIONS "u6fbte"
+#define FROGBOT_MARKER_FLAG_OPTIONS "u6fbte12"
 
 // added for ktx
 qbool fb_lg_disabled(void);
