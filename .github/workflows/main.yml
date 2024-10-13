@@ -176,8 +176,8 @@ jobs:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         shell: bash
         run: |
-          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
-          ssh-add - <<< "${{ secrets.SSH_PRIVATE_KEY }}"
+          echo ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          echo ssh-add - <<< "${{ secrets.SSH_PRIVATE_KEY }}"
 
       - name: Prepare upload to builds.quakeworld.nu
         env:
