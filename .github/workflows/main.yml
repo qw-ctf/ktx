@@ -134,7 +134,7 @@ jobs:
     needs: build
     timeout-minutes: 10
     runs-on: ubuntu-latest
-    if: github.repository == 'QW-Group/ktx' && ((github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'release')
+    if: github.repository == 'qw-ctf/ktx' && ((github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'release')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -184,8 +184,8 @@ jobs:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         shell: bash
         run: |
-          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
-          ssh-add - <<< "${{ secrets.SSH_PRIVATE_KEY }}"
+          echo ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          echo ssh-add - <<< "${{ secrets.SSH_PRIVATE_KEY }}"
 
       - name: Prepare upload to builds.quakeworld.nu
         env:
@@ -239,7 +239,7 @@ jobs:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         shell: bash
         run: |
-          sftp -rp -o 'StrictHostKeyChecking no' -o 'UserKnownHostsFile /dev/null' -P ${{ secrets.SFTP_PORT }} ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:/snapshots <<< $'put -rp upload/snapshots/*'
+          echo sftp -rp -o 'StrictHostKeyChecking no' -o 'UserKnownHostsFile /dev/null' -P ${{ secrets.SFTP_PORT }} ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:/snapshots <<< $'put -rp upload/snapshots/*'
         if: github.event_name == 'push'
 
       - name: Upload to builds.quakeworld.nu/ktx/releases
@@ -247,5 +247,5 @@ jobs:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         shell: bash
         run: |
-          sftp -rp -o 'StrictHostKeyChecking no' -o 'UserKnownHostsFile /dev/null' -P ${{ secrets.SFTP_PORT }} ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:/releases <<< $'put -rp upload/releases/*'
+          echo sftp -rp -o 'StrictHostKeyChecking no' -o 'UserKnownHostsFile /dev/null' -P ${{ secrets.SFTP_PORT }} ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:/releases <<< $'put -rp upload/releases/*'
         if: github.event_name == 'release'
