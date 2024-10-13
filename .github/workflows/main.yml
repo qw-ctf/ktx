@@ -1,12 +1,13 @@
 name: main
 
 on:
- push:
-  tags: # Ignore tags as the release type takes care of those
- pull_request:
- workflow_dispatch:
- release:
-    types: [created]
+  push:
+    branches:
+      - '**'
+   pull_request:
+   workflow_dispatch:
+   release:
+     types: [created]
 
 jobs:
   build:
