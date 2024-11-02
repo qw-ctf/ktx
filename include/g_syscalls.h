@@ -146,6 +146,9 @@ void trap_VisibleTo(intptr_t viewer, intptr_t first, intptr_t len, byte *visible
 // Raw calls, use _i and _f helpers instead.
 void trap_SetExtField(gedict_t *ed, const char *fieldname, int val);
 int trap_GetExtField(gedict_t *ed, const char *fieldname);
+intptr_t trap_MapExtFieldPtr(const char *fieldname);
+intptr_t trap_SetExtFieldPtr(gedict_t *ed, intptr_t fieldref, intptr_t *data, intptr_t size);
+intptr_t trap_GetExtFieldPtr(gedict_t *ed, intptr_t fieldref, intptr_t *data, intptr_t size);
 
 // Checks for server support before call
 void trap_SetExtField_i(gedict_t *ed, const char *fieldname, int val);
