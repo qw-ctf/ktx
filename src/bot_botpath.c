@@ -178,6 +178,106 @@ static qbool LookingAtPlayer(gedict_t *self)
 	return (self->fb.look_object && (self->fb.look_object->ct == ctPlayer));
 }
 
+void LookAtButton(gedict_t *button, qbool buttonIsDoor)
+{
+	gedict_t *target = buttonIsDoor ? button->fb.door_entity : button;
+	gedict_t *trigger = PROG_TO_EDICT(target->s.v.enemy);
+
+	vec3_t target_origin;
+	VectorScale(target->s.v.absmin, 0.5, target_origin);
+	VectorMA(target_origin, 0.5, target->s.v.absmax, target_origin);
+
+	traceline(self->s.v.origin[0], self->s.v.origin[1], self->s.v.origin[2] + 16,
+		target_origin[0], target_origin[1], target_origin[2],
+		true, self);
+
+	if (g_globalvars.trace_fraction == 1 ||
+		PROG_TO_EDICT(g_globalvars.trace_ent) == target ||
+		PROG_TO_EDICT(g_globalvars.trace_ent) == button)
+	{
+		if ((target->s.v.takedamage))
+		{
+			// Fire to open it: a shootable door/button is damageable only while
+			// closed (takedamage is cleared once it opens), so fire on the
+			// closed/closing states, not the open ones.
+			if ((buttonIsDoor && (target->state == STATE_BOTTOM || target->state == STATE_DOWN)) ||
+			   (target->s.v.enemy && (trigger->state == STATE_BOTTOM || trigger->state == STATE_DOWN)) ||
+			   (!target->s.v.enemy && !buttonIsDoor))
+			{
+				self->fb.path_state |= FIRE_BUTTON;
+				self->fb.state |= NOTARGET_ENEMY;
+				self->fb.look_object = target;
+				// The firing code (BotsFireAtWorldLogic) aims at the brush centre
+				// when FIRE_BUTTON is set. Don't stash the centre in the entity's
+				// view_ofs: for a func_button that entity is a routing marker whose
+				// absmin+view_ofs is its graph position, and overwriting it would
+				// shift that marker permanently for every bot.
+			}
+		}
+	}
+}
+
+qbool CheckLookAtButton(gedict_t *self)
+{
+	gedict_t *marker = NULL;
+
+	// A func_door becomes a marker with door_entity set in every mode
+	// (fb_spawn_door), but automatically shooting a door on sight is CTF
+	// behaviour. Outside CTF, map-specific handlers such as DM6LookAtDoor own the
+	// door (gated on their own path_state), so shooting it here would hijack the
+	// bot's aim and suppress enemy targeting on stock maps like dm6.
+	if (isCTF())
+	{
+		// First check if the bot is in front of a shootable door
+		marker = self->fb.linked_marker;
+		if (marker && marker->fb.door_entity && marker->fb.door_entity->s.v.takedamage)
+		{
+			LookAtButton(marker, true);
+			return true;
+		}
+
+		marker = self->fb.touch_marker;
+		if (marker && marker->fb.door_entity && marker->fb.door_entity->s.v.takedamage)
+		{
+			LookAtButton(marker, true);
+			return true;
+		}
+	}
+
+	// Now check if there is a button linked to the current or next marker.
+	// MARKER_LOOK_BUTTON is opt-in .bot data (a LOOK_BUTTON path flag), so this
+	// only fires on maps whose route files explicitly mark a shootable button.
+	marker = NULL;
+	if (self->fb.linked_marker && (self->fb.linked_marker->fb.T & MARKER_LOOK_BUTTON))
+	{
+		marker = self->fb.linked_marker;
+	}
+	else if (self->fb.touch_marker && (self->fb.touch_marker->fb.T & MARKER_LOOK_BUTTON))
+	{
+		marker = self->fb.touch_marker;
+	}
+
+	if (marker)
+	{
+		int i;
+		for (i = 0; i < NUMBER_PATHS; i++)
+		{
+			fb_path_t *path = &marker->fb.paths[i];
+
+			if (path->next_marker && (path->flags & LOOK_BUTTON))
+			{
+				LookAtButton(path->next_marker, false);
+				return true;
+			}
+		}
+	}
+
+	self->fb.path_state &= ~FIRE_BUTTON;
+	self->fb.state &= ~NOTARGET_ENEMY;
+
+	return false;
+}
+
 qbool WaitingToHitGround(gedict_t *self)
 {
 	return (self->fb.path_state & WAIT_GROUND) && !((int)self->s.v.flags & FL_ONGROUND);
@@ -484,7 +584,7 @@ void ProcessNewLinkedMarker(gedict_t *self)
 	}
 
 	// FIXME: Map-specific
-	if (DM6LookAtDoor(self) || LookingAtPlayer(self))
+	if (DM6LookAtDoor(self) || LookingAtPlayer(self) || CheckLookAtButton(self))
 	{
 		return;
 	}

@@ -134,11 +134,27 @@ static qbool PredictEnemyLocationInFuture(gedict_t *enemy, float rel_time)
 // This is when firing at buttons/doors etc
 static void BotsFireAtWorldLogic(gedict_t *self, vec3_t rel_pos, float *rel_dist)
 {
-	VectorAdd(self->fb.look_object->s.v.absmin, self->fb.look_object->s.v.view_ofs, rel_pos);
+	if (self->fb.path_state & FIRE_BUTTON)
+	{
+		// Aim at the centre of the button/door brush, computed here from its
+		// bounds rather than from view_ofs (which for a marker entity is
+		// load-bearing routing data we must not overwrite).
+		VectorAdd(self->fb.look_object->s.v.absmin, self->fb.look_object->s.v.absmax, rel_pos);
+		VectorScale(rel_pos, 0.5, rel_pos);
+	}
+	else
+	{
+		VectorAdd(self->fb.look_object->s.v.absmin, self->fb.look_object->s.v.view_ofs, rel_pos);
+	}
 	VectorSubtract(rel_pos, self->s.v.origin, rel_pos);
 	*rel_dist = vlen(rel_pos);
 
 	if (DM6FireAtDoor(self, rel_pos))
+	{
+		return;
+	}
+
+	if (self->fb.path_state & FIRE_BUTTON)
 	{
 		return;
 	}
