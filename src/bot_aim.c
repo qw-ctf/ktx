@@ -9,6 +9,7 @@
 #define ATTACK_RESPAWN_TIME 3
 
 qbool DM6FireAtDoor(gedict_t *self, vec3_t rel_pos);
+qbool DischargeAtStartLogic(gedict_t *self);
 static void BotsModifyAimAtPlayerLogic(gedict_t *self);
 
 static void BotSetDesiredAngles(gedict_t *self, vec3_t rel_pos)
@@ -150,6 +151,11 @@ static void BotsFireAtWorldLogic(gedict_t *self, vec3_t rel_pos, float *rel_dist
 	*rel_dist = vlen(rel_pos);
 
 	if (DM6FireAtDoor(self, rel_pos))
+	{
+		return;
+	}
+
+	if (DischargeAtStartLogic(self))
 	{
 		return;
 	}
@@ -493,7 +499,7 @@ void BotsFireLogic(void)
 	AttackRespawns(self);
 
 	// a_attackfix()
-	if (!self->fb.rocketJumping && (self->s.v.enemy == 0) && !(self->fb.state & SHOT_FOR_LUCK))
+	if (!self->fb.rocketJumping && (self->s.v.enemy == 0) && !(self->fb.state & SHOT_FOR_LUCK) && !DischargeAtStartLogic(self))
 	{
 		self->fb.firing = false;
 	}
@@ -519,6 +525,11 @@ void BotsFireLogic(void)
 		}
 
 		BotSetDesiredAngles(self, rel_pos);
+	}
+
+	if (DischargeAtStartLogic(self))
+	{
+		self->fb.firing = true;
 	}
 }
 
