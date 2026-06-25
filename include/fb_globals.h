@@ -5,6 +5,16 @@
 
 #define PATH_SCORE_NULL -1000000
 
+// Travel time assigned to a link/route that can't be taken, treated as "no path"
+// by the route search (anything < TRAVEL_UNREACHABLE is considered reachable).
+#define TRAVEL_UNREACHABLE 1000000
+
+// Placeholder walk time for a rocket-jump-only link. Large enough that any real
+// walking route is preferred, but still finite (< TRAVEL_UNREACHABLE) so the
+// route search keeps treating the link as reachable, as it did before the
+// sentinel was named; only rj_time carries the link's real (rocket-jump) cost.
+#define TRAVEL_ROCKET_JUMP_ONLY 100000
+
 #define FB_OPTION_SHOW_MARKERS			1
 #define FB_OPTION_EDITOR_MODE			2
 #define FB_OPTION_SHOW_DUEL_LOGIC		4
