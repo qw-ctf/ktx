@@ -21,6 +21,10 @@ extern gedict_t *markers[];
 void AddToQue(gedict_t *ent)
 {
 	markers[marker_index] = ent;
+	// subzone_row is this marker's stable slot in the marker_subzones[] pool. Keep
+	// it separate from fb.index, which FrogbotSaveBotFile renumbers - the subzone
+	// tables must not be re-keyed underneath the routing data.
+	ent->fb.subzone_row = marker_index;
 	ent->fb.index = marker_index++;
 }
 
@@ -182,6 +186,11 @@ const char* EncodeMarkerPathFlags(int path_flags)
 		*s++ = 'r';
 	}
 
+	if (path_flags & HOOK)
+	{
+		*s++ = 'h';
+	}
+
 	if (path_flags & LOOK_BUTTON)
 	{
 		*s++ = 'l';
@@ -231,6 +240,10 @@ int DecodeMarkerPathFlagString(const char *s)
 
 			case 'r':
 				path_flags |= ROCKET_JUMP;
+				break;
+
+			case 'h':
+				path_flags |= HOOK;
 				break;
 
 			case 'l':

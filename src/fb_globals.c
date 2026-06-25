@@ -13,6 +13,10 @@ int m_D = 0;
 
 gedict_t *markers[NUMBER_MARKERS] =
 	{ 0 };
+// Per-marker subzone route tables, held out of fb_entvars_t so they don't bloat
+// every edict (only markers have subzone data). Indexed by marker->fb.subzone_row,
+// a stable row assigned once at marker creation (AddToQue).
+fb_subzone_t marker_subzones[NUMBER_MARKERS][NUMBER_SUBZONES];
 gedict_t *zone_head[NUMBER_ZONES] =
 	{ 0 };
 gedict_t *zone_tail[NUMBER_ZONES] =
