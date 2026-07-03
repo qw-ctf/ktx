@@ -1352,8 +1352,6 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	}
 	//
 
-	VectorCopy(e->s.v.origin, e->pos1);
-
 	// actual stepping through
 	while (current_time <= g_globalvars.time)
 	{
@@ -1482,8 +1480,6 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 		Physics_Bounce(0.05f);
 	}
 	//
-
-	VectorCopy(e->s.v.origin, e->pos1);
 
 	// actual step through
 	while (current_time < g_globalvars.time)

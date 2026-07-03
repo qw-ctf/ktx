@@ -1828,6 +1828,7 @@ void CheckTeamStatus(void);
 void SendSpecInfo(void);
 void DoMVDAutoTrack(void);
 void antilag_updateworld(void);
+void UpdateProjectileSendNeeded(void);
 
 void FixNoSpecs(void);
 
@@ -1916,6 +1917,8 @@ void StartFrame(int time)
 
 	time_corrected = (float)time;
 	antilag_updateworld();
+
+	UpdateProjectileSendNeeded();
 
 	WillPause();
 }

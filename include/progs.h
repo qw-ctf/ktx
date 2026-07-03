@@ -813,6 +813,8 @@ typedef struct fb_entvars_s {
 #define PROJECTILE_ANGLES       (1 << 2)
 #define PROJECTILE_OWNER        (1 << 3)
 #define PROJECTILE_SPAWN_ORIGIN (1 << 4)
+// Full initial snapshot sent when a projectile first becomes visible to CSQC.
+#define PROJECTILE_INITIAL      (PROJECTILE_ORIGIN | PROJECTILE_MODEL | PROJECTILE_ANGLES | PROJECTILE_OWNER | PROJECTILE_SPAWN_ORIGIN)
 
 #define PLAYERPRED_STATE        (1 << 0)
 #define PLAYERPRED_FLAGS        (1 << 1)

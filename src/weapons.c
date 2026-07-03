@@ -76,7 +76,7 @@ qbool SendEntity_Projectile(int sendflags)
 
 	if (self->pos1[0] == 0 && self->pos1[1] == 0 && self->pos1[2] == 0)
 	{
-		sendflags &= ~16; // if our pos1 is blank, don't send it.
+		sendflags &= ~PROJECTILE_SPAWN_ORIGIN; // if our pos1 is blank, don't send it.
 	}
 
 	WriteByte(MSG_CSQC, sendflags);
@@ -122,6 +122,43 @@ qbool SendEntity_Projectile(int sendflags)
 	}
 
 	return true;
+}
+
+// Capture the spawn origin and schedule the initial CSQC snapshot for a freshly
+// fired projectile. pos1 carries the true spawn origin (used by CSQC to seed the
+// projectile trail); it must be recorded here, before the antilag rewinder steps
+// the projectile forward.
+static void ScheduleProjectileSendIfLive(gedict_t *projectile)
+{
+	if (!projectile || projectile == world || !projectile->s.v.modelindex)
+	{
+		return;
+	}
+
+	VectorCopy(projectile->s.v.origin, projectile->pos1);
+	ExtFieldSetSendEntity(projectile, (func_t)SendEntity_Projectile);
+	SetSendNeeded(projectile, PROJECTILE_INITIAL, 0);
+}
+
+// Grenades bounce under full server physics; the initial CSQC snapshot is not
+// enough for clients to reproduce that path, so keep live grenades corrected
+// with authoritative origin/velocity/time updates each frame.
+void UpdateProjectileSendNeeded(void)
+{
+	gedict_t *projectile;
+
+	for (projectile = world; (projectile = nextent(projectile));)
+	{
+		if (!projectile->isMissile || !projectile->s.v.modelindex || !projectile->SendEntity)
+		{
+			continue;
+		}
+
+		if (streq(projectile->classname, "grenade"))
+		{
+			SetSendNeeded(projectile, PROJECTILE_ORIGIN, 0);
+		}
+	}
 }
 
 
@@ -1292,10 +1329,6 @@ void W_FireRocket(void)
 	newmis->isMissile = true;
 	newmis->s.v.solid = (isRACE() ? SOLID_TRIGGER : SOLID_BBOX);
 
-	// CSQC projectile optmization
-	ExtFieldSetSendEntity(newmis, (func_t)SendEntity_Projectile);
-	SetSendNeeded(newmis, 255, 0);
-
 	// set newmis speed
 	trap_makevectors(self->s.v.v_angle);
 	aim(newmis->s.v.velocity);	// = aim(self, 1000);
@@ -1327,9 +1360,12 @@ void W_FireRocket(void)
 				self->s.v.origin[1] + g_globalvars.v_forward[1] * 8,
 				self->s.v.origin[2] + g_globalvars.v_forward[2] * 8 + 16);
 
-	// midair 
+	// midair
 	VectorCopy(self->s.v.origin, newmis->s.v.oldorigin);
 	newmis->rad_time = g_globalvars.time;
+
+	// CSQC projectile optimization: record spawn origin and schedule initial send.
+	ScheduleProjectileSendIfLive(newmis);
 
 	antilag_lagmove_all_proj(self, newmis);
 	antilag_unmove_all();
@@ -1719,6 +1755,9 @@ void W_FireGrenade(void)
 	setsize(newmis, 0, 0, 0, 0, 0, 0);
 	setorigin(newmis, PASSVEC3(self->s.v.origin));
 
+	// CSQC projectile optimization: record spawn origin and schedule initial send.
+	ScheduleProjectileSendIfLive(newmis);
+
 	antilag_lagmove_all_proj_bounce(self, newmis);
 	antilag_unmove_all();
 	antilag_clearflags_all();
@@ -1771,9 +1810,8 @@ void launch_spike(vec3_t org, vec3_t dir)
 
 	vectoangles(newmis->s.v.velocity, newmis->s.v.angles);
 
-	// CSQC projectile optmization
-	ExtFieldSetSendEntity(newmis, (func_t)SendEntity_Projectile);
-	SetSendNeeded(newmis, 255, 0);
+	// CSQC projectile optimization: record spawn origin and schedule initial send.
+	ScheduleProjectileSendIfLive(newmis);
 }
 
 static qbool race_ignore_spike(gedict_t *self, gedict_t *other)
