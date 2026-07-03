@@ -4,5 +4,11 @@
 #define CSQC
 fteextensions.qc
 
+defs.qc
+weapondef.qc
+projectiles.qc
+beam.qc
+explosions.qc
+playerpred.qc
 weaponpred.qc
 main.qc
