@@ -150,6 +150,7 @@ intptr_t trap_MapExtFieldPtr(const char *fieldname);
 intptr_t trap_SetExtFieldPtr(gedict_t *ed, intptr_t fieldref, intptr_t *data, intptr_t size);
 intptr_t trap_GetExtFieldPtr(gedict_t *ed, intptr_t fieldref, intptr_t *data, intptr_t size);
 intptr_t trap_SetSendNeeded(intptr_t subject, intptr_t flags, intptr_t to);
+intptr_t trap_SkipEntityPhysics(intptr_t entnum);
 
 // Checks for server support before call
 void ExtFieldSetAlpha(gedict_t *ed, float alpha);
@@ -158,6 +159,7 @@ void ExtFieldSetColorMod(gedict_t *ed, float r, float g, float b);
 void ExtFieldSetSendEntity(gedict_t *ed, func_t callback);
 void ExtFieldSetPvsFlags(gedict_t *ed, float pvsflags);
 void SetSendNeeded(gedict_t *ed, int sendflags, int unicast);
+void SkipEntityPhysics(gedict_t *ed);
 
 void trap_changelevelHub(const char *name, const char *entityname, const char *startspot);
 int trap_URI_Query(const char *uri, int vmentry/*GAME_...*/, void *cbcontext, const char *mimetype, const char *data, size_t datasize);
