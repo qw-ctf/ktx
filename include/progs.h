@@ -814,6 +814,13 @@ typedef struct fb_entvars_s {
 #define PROJECTILE_OWNER        (1 << 3)
 #define PROJECTILE_SPAWN_ORIGIN (1 << 4)
 
+#define PLAYERPRED_STATE        (1 << 0)
+#define PLAYERPRED_FLAGS        (1 << 1)
+// pmflags byte carried by PLAYERPRED_FLAGS
+#define PLAYERPREDF_ONGROUND    (1 << 0)
+#define PLAYERPREDF_NOPREDICT   (1 << 1)
+#define PLAYERPREDF_TELEPORT    (1 << 2)
+
 typedef struct weppredanim_s
 {
 	signed char		mdlframe;				// frame number in model
@@ -1365,6 +1372,7 @@ typedef struct gedict_s
 	float client_ping;
 	float client_predflags;
 	struct gedict_s *weapon_pred;
+	struct gedict_s *player_pred;
 // }
 
 // { csqc

@@ -1736,6 +1736,108 @@ void WeaponPrediction_CreateEnt(void)
 	self->weapon_pred = wep_values;
 }
 
+// EZCSQC_PLAYER (type 3): the authoritative pre-prediction player state used to
+// seed CSQC's own player-physics replay (rocket self-kick + view smoothing).
+static int PlayerPrediction_PmFlags(gedict_t *p)
+{
+	int pmflags = 0;
+
+	if ((int)p->s.v.flags & FL_ONGROUND)
+	{
+		pmflags |= PLAYERPREDF_ONGROUND;
+	}
+	if (p->s.v.health <= 0 || p->client_predflags == PRDFL_FORCEOFF)
+	{
+		pmflags |= PLAYERPREDF_NOPREDICT;
+	}
+
+	return pmflags;
+}
+
+qbool PlayerPrediction_SendEntity(int sendflags)
+{
+	self = PROG_TO_EDICT(self->s.v.owner);
+
+	if (self != other)
+	{
+		return false;
+	}
+
+	WriteByte(MSG_CSQC, EZCSQC_PLAYER);
+	WriteByte(MSG_CSQC, sendflags);
+
+	if (sendflags & PLAYERPRED_STATE)
+	{
+		WriteCoord(MSG_CSQC, self->s.v.origin[0]);
+		WriteCoord(MSG_CSQC, self->s.v.origin[1]);
+		WriteCoord(MSG_CSQC, self->s.v.origin[2]);
+		// Velocity as raw floats: rocket-jump speeds exceed the coord range and
+		// this directly seeds physics replay.
+		WriteFloat(MSG_CSQC, self->s.v.velocity[0]);
+		WriteFloat(MSG_CSQC, self->s.v.velocity[1]);
+		WriteFloat(MSG_CSQC, self->s.v.velocity[2]);
+	}
+
+	if (sendflags & PLAYERPRED_FLAGS)
+	{
+		WriteByte(MSG_CSQC, PlayerPrediction_PmFlags(self));
+	}
+
+	return true;
+}
+
+void PlayerPrediction_MarkSendFlags(void)
+{
+	gedict_t *pp = self->player_pred;
+	int sendflags = 0;
+	int pmflags;
+
+	if (pp == NULL)
+	{
+		return;
+	}
+
+	if (pp->s.v.origin[0] != self->s.v.origin[0] || pp->s.v.origin[1] != self->s.v.origin[1]
+			|| pp->s.v.origin[2] != self->s.v.origin[2] || pp->s.v.velocity[0] != self->s.v.velocity[0]
+			|| pp->s.v.velocity[1] != self->s.v.velocity[1] || pp->s.v.velocity[2] != self->s.v.velocity[2])
+	{
+		sendflags |= PLAYERPRED_STATE;
+		VectorCopy(self->s.v.origin, pp->s.v.origin);
+		VectorCopy(self->s.v.velocity, pp->s.v.velocity);
+	}
+
+	pmflags = PlayerPrediction_PmFlags(self);
+	if ((int)pp->s.v.flags != pmflags)
+	{
+		sendflags |= PLAYERPRED_FLAGS;
+		pp->s.v.flags = pmflags;
+	}
+
+	if (sendflags)
+	{
+		SetSendNeeded(pp, sendflags, 0);
+	}
+}
+
+void PlayerPrediction_Cleanup(void)
+{
+	if (self->player_pred != NULL)
+	{
+		ent_remove(self->player_pred);
+		self->player_pred = NULL;
+	}
+}
+
+void PlayerPrediction_CreateEnt(void)
+{
+	gedict_t *pp = spawn();
+	pp->s.v.owner = EDICT_TO_PROG(self);
+	ExtFieldSetSendEntity(pp, (func_t)PlayerPrediction_SendEntity);
+	ExtFieldSetPvsFlags(pp, 3);
+	SetSendNeeded(pp, 0xFFFFFF, 0);
+	self->player_pred = pp;
+}
+
 ////////////////
 // GlobalParams:
 // time
@@ -1913,6 +2015,7 @@ void ClientConnect(void)
 
 	self->antilag_data = antilag_create_player(self);
 	WeaponPrediction_CreateEnt();
+	PlayerPrediction_CreateEnt();
 
 	MakeMOTD();
 
@@ -3182,6 +3285,7 @@ void ClientDisconnect(void)
 
 	antilag_delete_player(self);
 	WeaponPrediction_Cleanup();
+	PlayerPrediction_Cleanup();
 
 // s: added conditional function call here
 	if (self->k_kicking)
@@ -4769,6 +4873,7 @@ void PlayerPostThink(void)
 	}
 
 	WeaponPrediction_MarkSendFlags();
+	PlayerPrediction_MarkSendFlags();
 
 	race_player_post_think();
 
