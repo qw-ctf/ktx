@@ -69,6 +69,11 @@ qbool WeaponDefinition_SendEntity(int sendflags)
 				WriteShort(MSG_CSQC, anim->sound);
 				WriteShort(MSG_CSQC, anim->soundmask);
 			}
+			if (WEPPREDANIM_HAS(anim->flags, WEPPREDANIM_SOUND2))
+			{
+				WriteShort(MSG_CSQC, anim->sound2);
+				WriteShort(MSG_CSQC, anim->soundmask2);
+			}
 			if (anim->flags & WEPPREDANIM_PROJECTILE)
 			{
 				WriteShort(MSG_CSQC, anim->projectile_model);
@@ -408,16 +413,21 @@ void WPredict_Initialize(void)
 	player_shot1 = &lg->anim_states[1];
 	player_shot2 = &lg->anim_states[2];
 	lg->modelindex = trap_precache_model("progs/v_light.mdl");
-	lg->attack_time = 200;
+	lg->attack_time = 100;
 	lg->impulse = 8;
 	lg->itemflag = IT_LIGHTNING;
 	lg->anim_number = 3;
-	// idle anim
-	player_shot0->flags = WEPPREDANIM_ATTACK | WEPPREDANIM_SOUND | WEPPREDANIM_SOUNDAUTO;
+	// startup anim: play lstart once and bootstrap the lhit loop cadence via the
+	// second sound channel (CSQC gates lhit on lg_twidth so it is not doubled by
+	// the LTIME fire anims below).
+	player_shot0->flags = WEPPREDANIM_ATTACK | WEPPREDANIM_SOUND | WEPPREDANIM_SOUND2 | WEPPREDANIM_SOUNDAUTO | WEPPREDANIM_LGBEAM;
 	player_shot0->mdlframe = 0;
 	player_shot0->nextanim = 1;
+	player_shot0->length = 100;
 	player_shot0->sound = trap_precache_sound("weapons/lstart.wav");
 	player_shot0->soundmask = 0x0100;
+	player_shot0->sound2 = trap_precache_sound("weapons/lhit.wav");
+	player_shot0->soundmask2 = 0x0100;
 	// fire1 anim
 	player_shot1->flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND | WEPPREDANIM_LGBEAM | WEPPREDANIM_LTIME | WEPPREDANIM_ATTACK | WEPPREDANIM_BRANCH;
 	player_shot1->mdlframe = -4;

@@ -792,8 +792,10 @@ typedef struct fb_entvars_s {
 #define WEPPREDANIM_ATTACK		0x0020
 #define WEPPREDANIM_BRANCH		0x0040
 #define WEPPREDANIM_MOREBYTES	0x0080	// mark if we need "full" 16 bits of flags
-#define WEPPREDANIM_SOUNDAUTO	0x0100 | WEPPREDANIM_MOREBYTES
-#define WEPPREDANIM_LTIME		0x0200 | WEPPREDANIM_MOREBYTES
+#define WEPPREDANIM_SOUNDAUTO	(0x0100 | WEPPREDANIM_MOREBYTES)
+#define WEPPREDANIM_LTIME		(0x0200 | WEPPREDANIM_MOREBYTES)
+#define WEPPREDANIM_SOUND2		(0x0400 | WEPPREDANIM_MOREBYTES)	// second sound channel (e.g. LG lstart+lhit)
+#define WEPPREDANIM_HAS(f, fl)	(((f) & (fl)) == (fl))
 
 #define WEAPONDEF_INIT          (1 << 0)
 #define WEAPONDEF_FLAGS         (1 << 1)
@@ -829,6 +831,8 @@ typedef struct weppredanim_s
 	unsigned short	flags;					// flags from WEPPREDANIM
 	unsigned short	sound;					// WEPPREDANIM_SOUND: sound index to play
 	unsigned short	soundmask;				// WEPPREDANIM_SOUND: bitmask for sound (cl_predict_weaponsound)
+	unsigned short	sound2;					// WEPPREDANIM_SOUND2: second sound index to play
+	unsigned short	soundmask2;				// WEPPREDANIM_SOUND2: bitmask for second sound
 	unsigned short	projectile_model;		// WEPPREDANIM_PROJECTILE: model index of projectile
 	short			projectile_velocity[3];	// WEPPREDANIM_PROJECTILE: projectile velocity (v_right, v_forward, v_up)
 	byte			projectile_offset[3];	// WEPPREDANIM_PROJECTILE: projectile spawn position (v_right, v_forward, z)
