@@ -809,6 +809,7 @@ typedef struct fb_entvars_s {
 #define WEAPONINFO_ATTACK       (1 << 5)
 #define WEAPONINFO_TIMING       (1 << 6)
 #define WEAPONINFO_PRED_PING    (1 << 7)
+#define WEAPONINFO_ALL          0xFF	// full weapon-info baseline (all fields)
 
 #define PROJECTILE_ORIGIN       (1 << 0)
 #define PROJECTILE_MODEL        (1 << 1)

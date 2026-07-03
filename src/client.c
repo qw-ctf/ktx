@@ -907,17 +907,22 @@ void SP_info_player_deathmatch(void)
 }
 
 // I'v put next code in function, since it appear frequently
+void WeaponPrediction_ResetBaseline(void);
+
 void k_respawn(gedict_t *p, qbool body)
 {
 	gedict_t *swap = self;
+	int respawn_impulse;
 
 	self = p; // warning
+	respawn_impulse = (int)self->s.v.impulse;
 
 	self->s.v.deadflag = DEAD_RESPAWNABLE;
 	self->wreg_attack = 0;
 	self->s.v.button0 = 0;
 	self->s.v.button1 = 0;
 	self->s.v.button2 = 0;
+	self->s.v.impulse = 0;
 
 	// make a copy of the dead body for appearances sake
 	if (body)
@@ -929,6 +934,18 @@ void k_respawn(gedict_t *p, qbool body)
 	SetRespawnParms();
 	// respawn
 	PutClientInServer();
+	// Start a fresh CSQC weapon-prediction generation for the respawned player.
+	WeaponPrediction_ResetBaseline();
+
+	// Keep an intentional weapon-select respawn command, but drop stale/invalid
+	// backups so we don't spawn-switch to an unavailable weapon.
+	if (((respawn_impulse >= 1) && (respawn_impulse <= 8)) || respawn_impulse == 22)
+	{
+		if (W_CanSwitch(respawn_impulse, false))
+		{
+			self->s.v.impulse = respawn_impulse;
+		}
+	}
 
 	self = swap;
 }
@@ -1662,10 +1679,24 @@ qbool WeaponPrediction_SendEntity(int sendflags)
 	return true;
 }
 
+void WeaponPrediction_CreateEnt(void);
+
 void WeaponPrediction_MarkSendFlags(void)
 {
 	gedict_t *wep = self->weapon_pred;
 	int sendflags = WEAPONINFO_TIMING;
+
+	// Map/mode reloads can leave the player without a valid weapon-info sidecar.
+	if (!wep || wep->s.v.owner != EDICT_TO_PROG(self) || wep->SendEntity != (func_t)WeaponPrediction_SendEntity)
+	{
+		self->weapon_pred = NULL;
+		WeaponPrediction_CreateEnt();
+		wep = self->weapon_pred;
+		if (!wep)
+		{
+			return;
+		}
+	}
 
 	if (wep->s.v.impulse != self->s.v.impulse || wep->s.v.weapon != self->s.v.weapon)
 	{
@@ -1734,6 +1765,32 @@ void WeaponPrediction_CreateEnt(void)
 	ExtFieldSetPvsFlags(wep_values, 3);
 	SetSendNeeded(wep_values, 0xFFFFFF, 0);
 	self->weapon_pred = wep_values;
+}
+
+// Push a full weapon-info baseline, starting a fresh CSQC prediction generation
+// (used on respawn). CSQC treats a full WEAPONINFO_ALL update as the respawn
+// marker and arms its short post-respawn attack guard.
+void WeaponPrediction_ResetBaseline(void)
+{
+	gedict_t *wep = self->weapon_pred;
+
+	if (wep == NULL)
+	{
+		return;
+	}
+
+	wep->s.v.impulse = self->s.v.impulse;
+	wep->s.v.weapon = self->s.v.weapon;
+	wep->s.v.ammo_shells = self->s.v.ammo_shells;
+	wep->s.v.ammo_nails = self->s.v.ammo_nails;
+	wep->s.v.ammo_rockets = self->s.v.ammo_rockets;
+	wep->s.v.ammo_cells = self->s.v.ammo_cells;
+	wep->attack_finished = self->attack_finished;
+	wep->client_think = self->client_think;
+	wep->client_nextthink = self->client_nextthink;
+	wep->client_predflags = self->client_predflags;
+	wep->client_ping = self->client_ping;
+	SetSendNeeded(wep, WEAPONINFO_ALL, 0);
 }
 
 // EZCSQC_PLAYER (type 3): the authoritative pre-prediction player state used to
@@ -4859,7 +4916,12 @@ void PlayerPostThink(void)
 	}
 
 	// force weapon prediction off when neccesary
-	if (!readytostart())
+	if (self->trackent)
+	{
+		// tracking another player: their weapon must not be locally predicted
+		self->client_predflags = PRDFL_FORCEOFF;
+	}
+	else if (!readytostart())
 	{
 		self->client_predflags = PRDFL_FORCEOFF;
 	}
