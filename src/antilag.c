@@ -1211,6 +1211,49 @@ void antilag_lagmove_all_hitscan(gedict_t *e)
 	antilag_lagmove_all(e, ms);
 }
 
+// Reproduce the native newmis startup phase for a freshly spawned projectile:
+// advance it by a single 0.05s authoritative sweep under FL_GODMODE so its touch
+// can recognise an antilag-rewound hit. Returns true if the sweep hit something
+// (the caller must then clean up and stop). On a clean miss the projectile keeps
+// the pushed 0.05s lead (matching native newmis) but its original flags are
+// restored, so a later real impact is not misclassified as antilag-rewound.
+static int antilag_check_new_projectile_spawn_touch(gedict_t *owner, gedict_t *e, float rewind_time)
+{
+	vec3_t push;
+	gedict_t *old_self;
+	float fraction;
+	float speed;
+	int original_flags;
+
+	if (newmis != e)
+	{
+		return false;
+	}
+
+	speed = VectorLength(e->s.v.velocity);
+	VectorClear(push);
+	if (speed > 1)
+	{
+		VectorMA(push, 0.05, e->s.v.velocity, push);
+	}
+
+	antilag_lagmove_all_playeronly(owner, rewind_time);
+	old_self = self;
+	self = e;
+	original_flags = (int)self->s.v.flags;
+	self->s.v.flags = ((int)self->s.v.flags) | FL_GODMODE;
+	fraction = Physics_PushEntity(PASSVEC3(push), false);
+	self = old_self;
+
+	if (fraction < 1 || g_globalvars.trace_startsolid)
+	{
+		return true;
+	}
+
+	e->s.v.flags = original_flags;
+	return false;
+}
+
 void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 {
 	float ms, step_time, current_time;
@@ -1223,7 +1266,20 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	}
 
 	ms = (float)atof(ezinfokey(owner, "ping")) / 1000.0f;
-	ms -= (ms < ANTILAG_MAX_PREDICTION ? (1 / 77.0) : ANTILAG_MAX_PREDICTION);
+
+	/*
+	 * Do not subtract ANTILAG_MAX_PREDICTION here. That mvdsv-derived offset
+	 * estimates predicted player hitbox time for hitscan rewind. Projectiles
+	 * are new objects fired from client input, and CSQC renders them
+	 * immediately from the same native newmis phase, so the authoritative
+	 * projectile must be advanced by the full input-to-server time up to the
+	 * projectile horizon.
+	 */
+	if (ms <= (1.0f / 77.0f))
+	{
+		// A one-frame ping has no meaningful catch-up beyond the newmis step.
+		ms = 0;
+	}
 
 	if (ms > ANTILAG_REWIND_MAXPROJECTILE)
 	{
@@ -1276,6 +1332,8 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 	e->s.v.armorvalue = ms;
 
 	oself = self;
+	// We step this projectile ourselves; stop the engine running it again this frame.
+	SkipEntityPhysics(e);
 
 	step_time = min(cvar("sv_mintic"), ms);
 	if (step_time * VectorLength(e->s.v.velocity) > 3)
@@ -1286,23 +1344,11 @@ void antilag_lagmove_all_proj(gedict_t *owner, gedict_t *e)
 
 	current_time = g_globalvars.time - ms;
 	// newmis reimplementation
-	if (newmis == e)
+	if (antilag_check_new_projectile_spawn_touch(owner, e, g_globalvars.time - current_time))
 	{
-		antilag_lagmove_all_playeronly(owner, (g_globalvars.time - current_time));
-		traceline(PASSVEC3(e->s.v.origin), e->s.v.origin[0] + e->s.v.velocity[0] * 0.05, e->s.v.origin[1] + e->s.v.velocity[1] * 0.05, e->s.v.origin[2] + e->s.v.velocity[2] * 0.05, false, e);
-		trap_setorigin(NUM_FOR_EDICT(e), PASSVEC3(g_globalvars.trace_endpos));
-
-		if (g_globalvars.trace_fraction < 1 || g_globalvars.trace_startsolid)
-		{
-			other = PROG_TO_EDICT(g_globalvars.trace_ent);
-			self = e;
-			self->s.v.flags = ((int)self->s.v.flags) | FL_GODMODE;
-			((void(*)(void))(self->touch))();
-
-			self = oself;
-			antilag_unmove_all(); // emergency antilag cleanup
-			return;
-		}
+		self = oself;
+		antilag_unmove_all(); // emergency antilag cleanup
+		return;
 	}
 	//
 
@@ -1362,7 +1408,14 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	}
 
 	ms = (float)atof(ezinfokey(owner, "ping")) / 1000.0f;
-	ms -= (ms < ANTILAG_MAX_PREDICTION ? (1.0f / 77.0f) : ANTILAG_MAX_PREDICTION);
+
+	// See antilag_lagmove_all_proj: use the full input-to-server catch-up time,
+	// not the hitscan ANTILAG_MAX_PREDICTION offset. Native newmis advances the
+	// origin separately from this latency catch-up horizon.
+	if (ms <= (1.0f / 77.0f))
+	{
+		ms = 0;
+	}
 
 	if (ms > ANTILAG_REWIND_MAXPROJECTILE)
 	{
@@ -1410,6 +1463,8 @@ void antilag_lagmove_all_proj_bounce(gedict_t *owner, gedict_t *e)
 	e->s.v.armorvalue = ms;
 
 	oself = self;
+	// We step this projectile ourselves; stop the engine running it again this frame.
+	SkipEntityPhysics(e);
 	self = e;
 
 	step_time = min(cvar("sv_mintic"), ms);
