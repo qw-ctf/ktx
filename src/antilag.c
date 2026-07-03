@@ -435,6 +435,105 @@ void WPredict_Initialize(void)
 	player_shot2->sound = trap_precache_sound("weapons/lhit.wav");
 	player_shot2->soundmask = 0x0100;
 	// END OF LIGHTNING GUN
+
+	// AXE
+	wepdef = spawn();
+	ExtFieldSetPvsFlags(wepdef, 3);
+	ExtFieldSetSendEntity(wepdef, (func_t)WeaponDefinition_SendEntity);
+	wepdef->s.v.weapon = axe - wpredict_definitions;
+	axe->modelindex = trap_precache_model("progs/v_axe.mdl");
+	axe->attack_time = 500;
+	axe->impulse = 1;
+	axe->itemflag = IT_AXE;
+	axe->anim_number = 9;
+	// idle anim
+	axe->anim_states[0].flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+	axe->anim_states[0].mdlframe = 0;
+	axe->anim_states[0].nextanim = 1;
+	// swing group A (frames 1-4)
+	axe->anim_states[1].flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND;
+	axe->anim_states[1].sound = trap_precache_sound("weapons/ax1.wav");
+	axe->anim_states[1].soundmask = 0x02;
+	axe->anim_states[1].mdlframe = 1;
+	axe->anim_states[1].nextanim = 2;
+	axe->anim_states[1].length = 100;
+	axe->anim_states[2].mdlframe = 2;
+	axe->anim_states[2].nextanim = 3;
+	axe->anim_states[2].length = 100;
+	axe->anim_states[3].mdlframe = 3;
+	axe->anim_states[3].nextanim = 4;
+	axe->anim_states[3].length = 100;
+	axe->anim_states[4].mdlframe = 4;
+	axe->anim_states[4].nextanim = 0;
+	axe->anim_states[4].length = 100;
+	// swing group B (frames 5-8)
+	axe->anim_states[5].flags = WEPPREDANIM_MUZZLEFLASH | WEPPREDANIM_SOUND;
+	axe->anim_states[5].sound = trap_precache_sound("weapons/ax1.wav");
+	axe->anim_states[5].soundmask = 0x02;
+	axe->anim_states[5].mdlframe = 5;
+	axe->anim_states[5].nextanim = 6;
+	axe->anim_states[5].length = 100;
+	axe->anim_states[6].mdlframe = 6;
+	axe->anim_states[6].nextanim = 7;
+	axe->anim_states[6].length = 100;
+	axe->anim_states[7].mdlframe = 7;
+	axe->anim_states[7].nextanim = 8;
+	axe->anim_states[7].length = 100;
+	axe->anim_states[8].mdlframe = 8;
+	axe->anim_states[8].nextanim = 0;
+	axe->anim_states[8].length = 100;
+	// END OF AXE
+
+	// COILGUN (instagib shotgun variant); base timing baked from the mode.
+	if (cvar("k_instagib") && cvar("k_instagib_custom_models"))
+	{
+		int i;
+		wepdef = spawn();
+		ExtFieldSetPvsFlags(wepdef, 3);
+		ExtFieldSetSendEntity(wepdef, (func_t)WeaponDefinition_SendEntity);
+		wepdef->s.v.weapon = coilgun - wpredict_definitions;
+		coilgun->modelindex = trap_precache_model("progs/v_coil.mdl");
+		coilgun->attack_time = (cvar("k_instagib") == 1) ? 1200 : ((cvar("k_instagib") == 2) ? 700 : 500);
+		coilgun->impulse = 2;
+		coilgun->itemflag = IT_SHOTGUN;
+		coilgun->anim_number = 7;
+		coilgun->anim_states[0].flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+		coilgun->anim_states[0].mdlframe = 0;
+		coilgun->anim_states[0].nextanim = 1;
+		// Hitscan: no predicted projectile; sound stays server-authoritative to
+		// avoid double audio in modes we cannot verify.
+		coilgun->anim_states[1].flags = WEPPREDANIM_MUZZLEFLASH;
+		for (i = 1; i <= 6; i++)
+		{
+			coilgun->anim_states[i].mdlframe = i;
+			coilgun->anim_states[i].nextanim = (i < 6) ? (i + 1) : 0;
+			coilgun->anim_states[i].length = 100;
+		}
+		// END OF COILGUN
+	}
+
+	// HOOK (grapple; viewmodel + attack gate only, pull/beam stay server-side)
+	wepdef = spawn();
+	ExtFieldSetPvsFlags(wepdef, 3);
+	ExtFieldSetSendEntity(wepdef, (func_t)WeaponDefinition_SendEntity);
+	wepdef->s.v.weapon = hook - wpredict_definitions;
+	hook->modelindex = k_ctf_custom_models
+			? trap_precache_model("progs/v_star.mdl")
+			: trap_precache_model("progs/v_axe.mdl");
+	hook->attack_time = 100;
+	hook->impulse = 22;
+	hook->itemflag = IT_HOOK;
+	hook->anim_number = 3;
+	hook->anim_states[0].flags = WEPPREDANIM_DEFAULT | WEPPREDANIM_ATTACK;
+	hook->anim_states[0].mdlframe = 0;
+	hook->anim_states[0].nextanim = 1;
+	hook->anim_states[1].mdlframe = 2;
+	hook->anim_states[1].nextanim = 2;
+	hook->anim_states[1].length = 100;
+	hook->anim_states[2].mdlframe = 3;
+	hook->anim_states[2].nextanim = 0;
+	hook->anim_states[2].length = 100;
+	// END OF HOOK
 }
 
 

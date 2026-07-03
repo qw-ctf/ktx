@@ -2143,13 +2143,14 @@ void W_SetCurrentAmmo(void)
 			if (cvar("k_instagib_custom_models") && cvar("k_instagib"))
 			{
 				self->weaponmodel = "progs/v_coil.mdl";
+				self->weapon_index = 8;
 			}
 			else
 			{
 				self->weaponmodel = "progs/v_shot.mdl";
+				self->weapon_index = 1;
 			}
 
-			self->weapon_index = 1;
 			self->s.v.weaponframe = 0;
 			items |= IT_SHELLS;
 			if (vw_enabled)
@@ -2255,6 +2256,7 @@ void W_SetCurrentAmmo(void)
 				self->weaponmodel = "progs/v_axe.mdl";
 			}
 
+			self->weapon_index = 9;
 			self->s.v.weaponframe = 0;
 			if (vw_enabled)
 			{
