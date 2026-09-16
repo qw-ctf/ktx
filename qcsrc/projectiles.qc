@@ -104,6 +104,27 @@ static float Projectile_TrailEffect(float is_grenade)
 
 // Every projectile has its trail origin seeded when it is created, so this only
 // ever continues one.
+/*
+ * What kind of projectile a model is, and the trail and tumble that come with
+ * that. The model's own flags say which, so this is the same answer for one we
+ * predicted and one the server sent.
+ */
+static void Projectile_Classify(entity e)
+{
+	if (e.modelflags & MF_GRENADE)
+	{
+		e.proj_kind = PROJ_GRENADE;
+		e.avelocity = GRENADE_SPIN;
+		e.trail_fx = Projectile_TrailEffect(TRUE);
+		return;
+	}
+
+	e.proj_kind = PROJ_LINEAR;
+
+	if (e.modelflags & MF_ROCKET)
+		e.trail_fx = Projectile_TrailEffect(FALSE);
+}
+
 static void Projectile_EmitTrail(void)
 {
 	if (!self.trail_fx)
@@ -389,9 +410,6 @@ float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
 	if (!Pred_ProjectilesEnabled())
 		return TRUE;
 
-	if (autocvar_cl_nopred_weapon)
-		return FALSE;
-
 	/*
 	 * Without antilag the server will not rewind to meet us, so a projectile
 	 * drawn here would not be where the server puts it.
@@ -429,15 +447,14 @@ float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
 	// sees it, so it left the muzzle that long ago.
 	proj.s_recv = time - NEWMIS_STEP;
 
-	if (proj.modelflags & MF_GRENADE)
+	Projectile_Classify(proj);
+
+	if (proj.proj_kind == PROJ_GRENADE)
 	{
-		proj.proj_kind = PROJ_GRENADE;
-		proj.avelocity = GRENADE_SPIN;
 		proj.sim_origin = org;
 		proj.sim_angles = proj.angles;
 		proj.sim_time = time;
 		proj.angle_time = cltime;
-		proj.trail_fx = Projectile_TrailEffect(TRUE);
 
 		// Match that step so the arcs line up.
 		Projectile_Bounce(proj, NEWMIS_STEP, TRUE);
@@ -445,15 +462,10 @@ float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
 	}
 	else
 	{
-		proj.proj_kind = PROJ_LINEAR;
-
 		// Extrapolated from the muzzle rather than simulated.
 		proj.s_origin = org;
 		proj.s_velocity = vel;
 		org += vel * NEWMIS_STEP;
-
-		if (proj.modelflags & MF_ROCKET)
-			proj.trail_fx = Projectile_TrailEffect(FALSE);
 	}
 
 	setorigin(proj, org);
@@ -584,18 +596,7 @@ void Projectile_Parse(float isnew)
 		setmodel(self, modelnameforindex(ReadShort()));
 		self.effects = ReadShort();
 
-		if (self.modelflags & MF_GRENADE)
-		{
-			self.proj_kind = PROJ_GRENADE;
-			self.avelocity = GRENADE_SPIN;
-			self.trail_fx = Projectile_TrailEffect(TRUE);
-		}
-		else
-		{
-			self.proj_kind = PROJ_LINEAR;
-			if (self.modelflags & MF_ROCKET)
-				self.trail_fx = Projectile_TrailEffect(FALSE);
-		}
+		Projectile_Classify(self);
 	}
 
 	if (sendflags & PROJECTILE_ANGLES)
@@ -637,23 +638,24 @@ void Projectile_Parse(float isnew)
 		}
 	}
 
-	if (isnew && autocvar_cl_predict_debug)
+	// Everything from here is about an entity appearing for the first time.
+	if (!isnew)
+		return;
+
+	if (autocvar_cl_predict_debug)
 	{
 		print(sprintf("proj: server #%g model %g owner %g\n",
 		              self.entnum, self.modelindex, self.owner_num));
 	}
 
-	if (isnew)
-	{
-		here = (self.proj_kind == PROJ_GRENADE)
-			? self.s_origin
-			: Projectile_LinearOrigin(self);
+	here = (self.proj_kind == PROJ_GRENADE)
+		? self.s_origin
+		: Projectile_LinearOrigin(self);
 
-		setorigin(self, here);
+	setorigin(self, here);
 
-		if (!trail_from_muzzle)
-			self.trail_org = here;
+	if (!trail_from_muzzle)
+		self.trail_org = here;
 
-		Projectile_TakeOver(self, here);
-	}
+	Projectile_TakeOver(self, here);
 }

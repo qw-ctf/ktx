@@ -125,6 +125,7 @@ const float PRED_MASK			= 63;
 const float LG_SOUND_WINDOW		= 0.6;	// lightning re-triggers its sound this often
 const float LG_ATTACK_TIME		= 0.2;	// lightning refire, overrides the table
 const float RESPAWN_GUARD		= 0.05;	// server discards attacks this long after spawning
+const float ATTACK_HOLDOFF		= 0.05;	// and holds the weapon shut this long while it cannot fire
 const float NEWMIS_STEP			= 0.05;	// the server advances a new missile one frame
 
 const float HANDOFF_GRENADE_DIST	= 128;	// grenade may be adopted within this
@@ -151,6 +152,8 @@ const vector ROCKET_LIGHT_COLOUR	= '0.4 0.2 0.05';
 
 const float SOUND_TOKEN_TTL		= 1.0;	// unmatched suppression tokens expire
 const float MAX_SOUND_TOKENS	= 8;
+
+const float VIEWMODEL_BLEND_RATE	= 10;	// view model pose blend, per second
 
 const float BEAM_RANGE			= 600;
 const float BEAM_HOLD			= 0.3;	// keep re-issuing a predicted beam this long

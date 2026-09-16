@@ -13,6 +13,11 @@ static float	beam_until;		// keep re-issuing our beam until this client time
 static float	beam_server_until;	// the server is feeding us beams until this client time
 static float	beam_issued;		// we have a bolt live that needs retracting
 
+/*
+ * Stop predicting a beam. beam_issued is deliberately left alone: a bolt that
+ * is already in the air still has to be retracted, which the next Beam_Draw
+ * does on its way out.
+ */
 void Beam_Clear(void)
 {
 	beam_until = 0;
@@ -34,7 +39,7 @@ static float Beam_ServerLive(void)
 // rendered frame so it tracks the view rather than lurching once per shot.
 void Beam_Predict(void)
 {
-	if (!autocvar_cl_predict_beam || autocvar_cl_nopred_weapon)
+	if (!autocvar_cl_predict_beam)
 		return;
 
 	if (Beam_ServerLive())
@@ -63,7 +68,7 @@ static void Beam_Retract(void)
 
 void Beam_Draw(void)
 {
-	vector muzzle, end;
+	vector start, end;
 	float contents;
 
 	if (cltime >= beam_until || Beam_ServerLive()
@@ -80,15 +85,16 @@ void Beam_Draw(void)
 	 * For a beam it owns, the engine ignores the start the server sent and
 	 * re-anchors it here every frame. Ours is never owned by the player, so it
 	 * is drawn from exactly the point we give it, and we have to place it where
-	 * the engine would. Anything nearer the camera puts the first segment of
-	 * the bolt on the lens, which is what fills the screen with white.
+	 * the engine would: the origin, raised by the same clamped view height the
+	 * engine uses. Anything nearer the camera puts the first segment of the
+	 * bolt on the lens, which is what fills the screen with white.
 	 */
-	muzzle = pmove_org;
-	muzzle_z += bound(-7, cvar("v_viewheight"), 4);
+	start = pmove_org;
+	start_z += bound(-7, cvar("v_viewheight"), 4);
 
 	// A discharge underwater is not a beam; the server handles that case and we
 	// would only draw a bolt that never existed.
-	contents = pointcontents(muzzle);
+	contents = pointcontents(start);
 	if (contents == CONTENT_WATER || contents == CONTENT_SLIME || contents == CONTENT_LAVA)
 	{
 		Beam_Retract();
@@ -96,7 +102,7 @@ void Beam_Draw(void)
 	}
 
 	makevectors(view_angles);
-	end = muzzle + v_forward * BEAM_RANGE;
+	end = start + v_forward * BEAM_RANGE;
 
 	/*
 	 * Trace against the world alone. The server ignores the firing player when
@@ -105,9 +111,9 @@ void Beam_Draw(void)
 	 * use. Without it the trace stops on the player standing at the muzzle and
 	 * the bolt is a stub drawn across the camera.
 	 */
-	traceline(muzzle, end, MOVE_NOMONSTERS, viewweapon);
+	traceline(start, end, MOVE_NOMONSTERS, viewweapon);
 
-	te_lightning2(viewweapon, muzzle, trace_endpos);
+	te_lightning2(viewweapon, start, trace_endpos);
 	beam_issued = TRUE;
 }
 

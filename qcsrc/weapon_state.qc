@@ -63,6 +63,31 @@ static void WeaponState_ResetLightning(void)
 }
 
 /*
+ * Show a state's frame. A negative one in the table means "cycle", counting up
+ * to its magnitude and starting again at 1.
+ */
+static void WeaponState_SetFrame(float frame)
+{
+	if (frame >= 0)
+	{
+		ws_predicted.frame = frame;
+		return;
+	}
+
+	ws_predicted.frame++;
+
+	if (ws_predicted.frame > -frame)
+		ws_predicted.frame = 1;
+}
+
+// Nothing is scheduled: the animation has run out.
+static void WeaponState_Unschedule(void)
+{
+	ws_predicted.client_thinkindex = 0;
+	ws_predicted.client_nextthink = 0;
+}
+
+/*
  * Stop predicting until a fresh snapshot arrives. Whatever we hold describes a
  * life that has ended, and animating from it would replay the previous life's
  * last shot.
@@ -76,6 +101,40 @@ void WeaponState_Discard(void)
 // ==========================================================================
 // Parsing
 // ==========================================================================
+
+/*
+ * The generation changes when the player respawns. Everything predicted before
+ * that belongs to the previous life, and the server throws away attacks for a
+ * moment after spawning, so we do the same. Called once the timing fields are
+ * read: the guard runs off the clock in this snapshot, not the one it replaces.
+ */
+static void WeaponState_NoteGeneration(float generation)
+{
+	if (weapon_generation >= 0 && generation != weapon_generation)
+	{
+		respawn_guard_until = ws_server.client_time + RESPAWN_GUARD;
+		WeaponState_ResetLightning();
+	}
+
+	weapon_generation = generation;
+}
+
+/*
+ * The axe runs one of two interchangeable swing chains. The server reports both
+ * as the same think index, so recover the second chain from the frame it is
+ * showing.
+ */
+static void WeaponState_RecoverAxeChain(void)
+{
+	if (Weapon_ItemFlag(ws_server.weapon_index) != IT_AXE)
+		return;
+
+	if (ws_server.frame >= 5
+		&& ws_server.client_thinkindex >= 2 && ws_server.client_thinkindex <= 4)
+	{
+		ws_server.client_thinkindex += 4;
+	}
+}
 
 void WeaponState_Parse(float isnew)
 {
@@ -119,30 +178,8 @@ void WeaponState_Parse(float isnew)
 		ws_server.ping = ReadByte() / 1000;
 	}
 
-	/*
-	 * The generation changes when the player respawns. Everything we predicted
-	 * before that belongs to the previous life, and the server throws away
-	 * attacks for a moment after spawning, so do the same. This has to come
-	 * after the timing fields are read: the guard runs off the clock in this
-	 * snapshot, not the one it replaces.
-	 */
-	if (weapon_generation >= 0 && generation != weapon_generation)
-	{
-		respawn_guard_until = ws_server.client_time + RESPAWN_GUARD;
-		WeaponState_ResetLightning();
-	}
-	weapon_generation = generation;
-
-	/*
-	 * The axe runs one of two interchangeable swing chains. The server reports
-	 * both as the same think index, so recover the second chain from the frame
-	 * it is showing.
-	 */
-	if (Weapon_ItemFlag(ws_server.weapon_index) == IT_AXE && ws_server.frame >= 5
-		&& ws_server.client_thinkindex >= 2 && ws_server.client_thinkindex <= 4)
-	{
-		ws_server.client_thinkindex += 4;
-	}
+	WeaponState_NoteGeneration(generation);
+	WeaponState_RecoverAxeChain();
 
 	/*
 	 * Replay has to start from the input frame this snapshot already includes.
@@ -182,7 +219,7 @@ enum
 	SWITCH_UNRESOLVED	// cannot select it; drop the impulse
 };
 
-static float Weapon_Switch(float impulse)
+static float WeaponState_Switch(float impulse)
 {
 	float idx;
 
@@ -206,59 +243,61 @@ static float Weapon_Switch(float impulse)
 		WeaponState_ResetLightning();
 
 	ws_predicted.weapon_index = idx;
-	ws_predicted.client_thinkindex = 0;
-	ws_predicted.client_nextthink = 0;
+	WeaponState_Unschedule();
 	ws_predicted.frame = max(0, weapons[idx].anim[0].frame);
 	return SWITCH_APPLIED;
 }
 
+/*
+ * The sounds a state makes on entry.
+ *
+ * The lightning gun ticks every 100 ms but its sounds repeat far more slowly,
+ * so lg_twidth holds the next client_time either may be heard at.
+ */
+static void WeaponState_PlaySounds(anim_t *anim)
+{
+	float flags = anim->flags;
+	float chan = (flags & ANIM_SOUNDAUTO) ? CHAN_AUTO : CHAN_WEAPON;
+
+	if ((flags & ANIM_LTIME) && ws_predicted.client_time < lg_twidth)
+		return;
+
+	Sound_PlayPredicted(anim->sound, chan);
+
+	if (flags & ANIM_SOUND2)
+	{
+		/*
+		 * Lightning restarts its loop sound freely but only re-strikes on the
+		 * same slow cadence as the beam.
+		 */
+		if ((flags & ANIM_LGBEAM) && !(flags & ANIM_LTIME))
+		{
+			if (ws_predicted.client_time >= lg_twidth)
+			{
+				Sound_PlayPredicted(anim->sound2, CHAN_WEAPON);
+				lg_twidth = ws_predicted.client_time + LG_SOUND_WINDOW;
+			}
+		}
+		else
+		{
+			Sound_PlayPredicted(anim->sound2, CHAN_WEAPON);
+		}
+	}
+
+	if (flags & ANIM_LTIME)
+		lg_twidth = ws_predicted.client_time + LG_SOUND_WINDOW;
+}
+
 // Effects fire on entering a state, but only on a frame we have not already
 // played them for: replay walks the same frames again every time we draw.
-static void Weapon_PlayEffects(float idx, float a, float buttons)
+static void WeaponState_PlayEffects(float idx, float a)
 {
 	anim_t *anim = &weapons[idx].anim[a];
 	float flags = anim->flags;
-	float chan, throttled;
-
-	if (autocvar_cl_nopred_weapon)
-		return;
 
 	if (frame_may_sound && (flags & ANIM_SOUND))
 	{
-		chan = (flags & ANIM_SOUNDAUTO) ? CHAN_AUTO : CHAN_WEAPON;
-
-		// The lightning gun ticks every 100ms but its sound repeats far more
-		// slowly; the window keeps the two apart.
-		throttled = (flags & ANIM_LTIME) && ws_predicted.client_time < lg_twidth;
-
-		if (!throttled)
-		{
-			Sound_PlayPredicted(anim->sound, chan);
-
-			if (flags & ANIM_SOUND2)
-			{
-				/*
-				 * Lightning restarts its loop sound freely but only re-strikes
-				 * on the same slow cadence as the beam.
-				 */
-				if ((flags & ANIM_LGBEAM) && !(flags & ANIM_LTIME))
-				{
-					if (ws_predicted.client_time >= lg_twidth)
-					{
-						Sound_PlayPredicted(anim->sound2, CHAN_WEAPON);
-						lg_twidth = ws_predicted.client_time + LG_SOUND_WINDOW;
-					}
-				}
-				else
-				{
-					Sound_PlayPredicted(anim->sound2, CHAN_WEAPON);
-				}
-			}
-
-			if (flags & ANIM_LTIME)
-				lg_twidth = ws_predicted.client_time + LG_SOUND_WINDOW;
-		}
-
+		WeaponState_PlaySounds(anim);
 		last_sound_frame = max(last_sound_frame, replay_frame);
 	}
 
@@ -278,14 +317,13 @@ static void Weapon_PlayEffects(float idx, float a, float buttons)
 	}
 }
 
-static void Weapon_EnterState(float a, float buttons)
+static void WeaponState_Enter(float a, float buttons)
 {
 	float idx = ws_predicted.weapon_index;
 
 	if (a < 0 || a >= weapons[idx].anim_count)
 	{
-		ws_predicted.client_thinkindex = 0;
-		ws_predicted.client_nextthink = 0;
+		WeaponState_Unschedule();
 		return;
 	}
 
@@ -295,8 +333,7 @@ static void Weapon_EnterState(float a, float buttons)
 	// The idle state ends the animation.
 	if (a == 0 && (flags & ANIM_DEFAULT))
 	{
-		ws_predicted.client_thinkindex = 0;
-		ws_predicted.client_nextthink = 0;
+		WeaponState_Unschedule();
 		if (anim->frame >= 0)
 			ws_predicted.frame = anim->frame;
 		return;
@@ -316,29 +353,18 @@ static void Weapon_EnterState(float a, float buttons)
 		 */
 		if (weapons[idx].anim[anim->alt].flags & ANIM_DEFAULT)
 		{
-			Weapon_EnterState(anim->alt, buttons);
+			WeaponState_Enter(anim->alt, buttons);
 		}
 		else
 		{
-			ws_predicted.client_thinkindex = 0;
-			ws_predicted.client_nextthink = 0;
+			WeaponState_Unschedule();
 		}
 		return;
 	}
 
-	Weapon_PlayEffects(idx, a, buttons);
+	WeaponState_PlayEffects(idx, a);
 
-	if (anim->frame >= 0)
-	{
-		ws_predicted.frame = anim->frame;
-	}
-	else
-	{
-		// A negative frame means cycle 1..|frame|.
-		ws_predicted.frame++;
-		if (ws_predicted.frame > -anim->frame)
-			ws_predicted.frame = 1;
-	}
+	WeaponState_SetFrame(anim->frame);
 
 	if (flags & ANIM_ATTACK)
 	{
@@ -359,7 +385,7 @@ static void Weapon_EnterState(float a, float buttons)
 
 // The server reproduces one scheduled transition per player frame, so we do the
 // same: no catching up on several at once.
-static void Weapon_Think(float buttons)
+static void WeaponState_Think(float buttons)
 {
 	float a = ws_predicted.client_thinkindex;
 	float idx = ws_predicted.weapon_index;
@@ -377,7 +403,7 @@ static void Weapon_Think(float buttons)
 	held = ws_predicted.client_time;
 	ws_predicted.client_time = ws_predicted.client_nextthink;
 	ws_predicted.client_nextthink = 0;
-	Weapon_EnterState(a, buttons);
+	WeaponState_Enter(a, buttons);
 	ws_predicted.client_time = held;
 }
 
@@ -391,7 +417,7 @@ static void Weapon_Think(float buttons)
  * truncate to a different integer. The cost is that the swing occasionally pops
  * to the other chain when the snapshot lands, which is cosmetic.
  */
-static float Weapon_AxeEntry(void)
+static float WeaponState_AxeEntry(void)
 {
 	float t = ws_predicted.client_time;
 	float r;
@@ -404,7 +430,7 @@ static float Weapon_AxeEntry(void)
 	return 1;
 }
 
-static void Weapon_Attack(float buttons)
+static void WeaponState_Attack(float buttons)
 {
 	float idx = ws_predicted.weapon_index;
 	anim_t *entry = &weapons[idx].anim[0];
@@ -423,14 +449,14 @@ static void Weapon_Attack(float buttons)
 	// Lightning has no idle state, so firing starts at state 0 itself.
 	if (!(entry->flags & ANIM_DEFAULT))
 	{
-		Weapon_EnterState(0, buttons);
+		WeaponState_Enter(0, buttons);
 		return;
 	}
 
 	if (weapons[idx].itemflag == IT_AXE)
-		Weapon_EnterState(Weapon_AxeEntry(), buttons);
+		WeaponState_Enter(WeaponState_AxeEntry(), buttons);
 	else
-		Weapon_EnterState(entry->next, buttons);
+		WeaponState_Enter(entry->next, buttons);
 
 	ws_predicted.attack_finished = ws_predicted.client_time
 		+ Weapon_AttackTime(idx, ws_predicted.predflags);
@@ -440,11 +466,8 @@ static void Weapon_Attack(float buttons)
 // Replay
 // ==========================================================================
 
-static void Weapon_Simulate(void)
+static void WeaponState_Step(void)
 {
-	float switched = SWITCH_APPLIED;
-	float had_impulse = FALSE;
-
 	/*
 	 * The server has switched prediction off, usually because the round has not
 	 * started or the player is hooked. Keep the clock moving and hold the
@@ -455,7 +478,7 @@ static void Weapon_Simulate(void)
 		ws_predicted.client_time += input_timelength;
 		ws_predicted.impulse = 0;
 		ws_predicted.attack_finished = max(ws_predicted.attack_finished,
-		                                   ws_predicted.client_time + 0.05);
+		                                   ws_predicted.client_time + ATTACK_HOLDOFF);
 		return;
 	}
 
@@ -463,7 +486,7 @@ static void Weapon_Simulate(void)
 	{
 		// Dead or spectating: the weapon clock does not advance at all.
 		ws_predicted.impulse = 0;
-		ws_predicted.attack_finished = ws_predicted.client_time + 0.05;
+		ws_predicted.attack_finished = ws_predicted.client_time + ATTACK_HOLDOFF;
 		return;
 	}
 
@@ -476,28 +499,28 @@ static void Weapon_Simulate(void)
 	if (ws_predicted.client_time < respawn_guard_until)
 		return;
 
-	Weapon_Think(input_buttons);
+	WeaponState_Think(input_buttons);
 
 	if (ws_predicted.impulse)
 	{
-		had_impulse = TRUE;
-		switched = Weapon_Switch(ws_predicted.impulse);
+		// A blocked switch stays queued, and the old weapon does not fire on a
+		// frame where one is waiting.
+		if (WeaponState_Switch(ws_predicted.impulse) == SWITCH_BLOCKED)
+			return;
 
-		// A blocked switch stays queued until the animation ends.
-		if (switched != SWITCH_BLOCKED)
-			ws_predicted.impulse = 0;
+		ws_predicted.impulse = 0;
 	}
 
-	// Do not fire the old weapon on a frame where a switch is waiting.
-	if (had_impulse && switched == SWITCH_BLOCKED)
-		return;
-
-	Weapon_Attack(input_buttons);
+	WeaponState_Attack(input_buttons);
 }
 
 void WeaponState_Replay(void)
 {
 	float threshold, last_shown;
+
+	// Not predicting at all: the engine draws the gun and plays every sound.
+	if (!Pred_Enabled())
+		return;
 
 	if (!ws_have_state)
 		return;
@@ -544,7 +567,7 @@ void WeaponState_Replay(void)
 		frame_may_sound = (f <= threshold) && (f > last_sound_frame);
 		frame_may_projectile = (f <= threshold) && (f > last_projectile_frame);
 
-		Weapon_Simulate();
+		WeaponState_Step();
 
 		if (f <= threshold)
 		{
@@ -625,7 +648,7 @@ float WeaponState_Present(void)
 		vw_lerptime = cltime;
 	}
 
-	viewweapon.lerpfrac = bound(0, 1 - (cltime - vw_lerptime) * 10, 1);
+	viewweapon.lerpfrac = bound(0, 1 - (cltime - vw_lerptime) * VIEWMODEL_BLEND_RATE, 1);
 
 	/*
 	 * A view model entity is positioned in view space. The engine applies its

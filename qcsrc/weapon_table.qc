@@ -231,7 +231,13 @@ float Weapon_ItemFlag(float idx)
 	return weapons[idx].itemflag;
 }
 
-// The weapon an impulse selects, or 0 when the impulse names none.
+/*
+ * The weapon an impulse selects, or 0 when the impulse names none.
+ *
+ * Every impulse in the table happens to equal the index of the weapon it
+ * selects, which is a coincidence of how the weapons are numbered rather than a
+ * rule, so it is looked up by field.
+ */
 float Weapon_ForImpulse(float impulse)
 {
 	for (float i = 1; i < weapons.length; i++)
