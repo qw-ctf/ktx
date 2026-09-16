@@ -209,6 +209,13 @@ void SP_worldspawn(void)
 		trap_cvar_set("sv_gravity", "800");
 	}
 
+	/*
+	 * Publish gravity so a client predicting grenade flight can match us. mvdsv
+	 * keeps sv_gravity as a plain cvar and csqc has no builtin reaching the
+	 * server's movevars, so serverinfo is the only channel.
+	 */
+	localcmd("serverinfo sv_gravity \"%s\"\n", cvar_string("sv_gravity"));
+
 // the area based ambient sounds MUST be the first precache_sounds
 
 // player precaches     

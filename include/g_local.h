@@ -481,6 +481,7 @@ char* make_dots(char *dots, size_t dots_len, int cmd_max_len, char *cmd);
 //
 #define PRDFL_MIDAIR	1
 #define PRDFL_COILGUN	2
+#define PRDFL_YAWNMODE	4
 #define PRDFL_FORCEOFF	255
 extern float		time_corrected;
 void			WPredict_Initialize(void);

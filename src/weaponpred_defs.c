@@ -119,6 +119,11 @@ void WPredict_SendDefinitionsTo(gedict_t *player)
 		return;
 	}
 
+	/*
+	 * Native EZCSQC clients only. This writes svc 77, which FTE reads as
+	 * svcfte_precache and would silently desync on; clients running our csprogs
+	 * have these definitions compiled in and must never be sent them.
+	 */
 	if (!iKey(player, "ezcsqc"))
 	{
 		return;
