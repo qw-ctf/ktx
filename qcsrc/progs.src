@@ -1,8 +1,13 @@
 ../build/csprogs.dat
+
 #define CSQC
+
 fteextensions.qc
 
-
-weaponpred.qc
+defs.qc
+weapon_table.qc
+weapon_state.qc
+weapon_sounds.qc
+projectiles.qc
+beam.qc
 main.qc
-
