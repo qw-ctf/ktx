@@ -24,7 +24,12 @@ enum
 
 .float	proj_kind;
 
-.vector	s_origin;		// last authoritative position
+/*
+ * The sample a straight-line projectile is extrapolated from: the last position
+ * the server reported, or for one of ours, the muzzle it left. Grenades bounce,
+ * so they are simulated from here rather than extrapolated.
+ */
+.vector	s_origin;
 .vector	s_velocity;
 /*
  * When that position was received, on our clock.
@@ -39,8 +44,6 @@ enum
 .float	owner_num;		// entity number of the player who fired
 .float	is_local;		// our own prediction, not an entity the server sent
 
-.vector	start;			// muzzle position, for linear reconstruction
-.float	starttime;		// server time it left the muzzle
 .float	endtime;		// server time a local projectile gives up at
 
 .vector	sim_origin;		// grenade simulation, carried between frames
@@ -52,11 +55,7 @@ enum
 .float	trail_fx;
 .vector	trail_org;		// last point we emitted trail from
 .float	trail_time;
-.float	trail_seeded;
 
-.vector	draw_origin;		// where this frame puts it
-.vector	last_draw_origin;
-.float	have_draw_origin;
 .float	debug_count;
 
 // Easing applied after taking over from a local prediction.
@@ -103,24 +102,19 @@ static float Projectile_TrailEffect(float is_grenade)
 	return particleeffectnum(is_grenade ? "TR_GRENADE" : "TR_ROCKET");
 }
 
-static void Projectile_EmitTrail(vector org)
+// Every projectile has its trail origin seeded when it is created, so this only
+// ever continues one.
+static void Projectile_EmitTrail(void)
 {
 	if (!self.trail_fx)
 		return;
-
-	if (!self.trail_seeded)
-	{
-		self.trail_org = org;
-		self.trail_seeded = TRUE;
-		return;
-	}
 
 	// Space emissions out so a high frame rate does not pile particles up.
 	if (cltime < self.trail_time)
 		return;
 
-	trailparticles(self.trail_fx, self, self.trail_org, org);
-	self.trail_org = org;
+	trailparticles(self.trail_fx, self, self.trail_org, self.origin);
+	self.trail_org = self.origin;
 	self.trail_time = cltime + TRAIL_PERIOD;
 }
 
@@ -143,19 +137,6 @@ static void Projectile_TraceWorldOnly(entity e)
 	e.dimension_hit = 254;
 }
 
-// True when a trace hit something whose behaviour we can anticipate: the world,
-// or a door or platform. A hit on a player or an item is not predictable.
-static float Projectile_HitPredictable(void)
-{
-	string mdl;
-
-	if (!trace_networkentity)
-		return TRUE;
-
-	mdl = modelnameforindex(getentity(trace_networkentity, GE_MODELINDEX));
-	return substring(mdl, 0, 1) == "*";
-}
-
 static vector Projectile_ClipVelocity(vector vel, vector normal, float overbounce)
 {
 	float backoff = (vel * normal) * overbounce;
@@ -174,61 +155,78 @@ static vector Projectile_ClipVelocity(vector vel, vector normal, float overbounc
  * Grenade flight. Gravity is applied in two halves either side of the move,
  * which is what the server's physics does, so the arcs agree.
  */
-static void Projectile_Bounce(float dt, float spin)
+static void Projectile_Bounce(entity e, float dt, float spin)
 {
 	float movetime = dt, bumps;
 	float bouncestop = (60 / 800) * sv_gravity;
-	vector to, org = self.sim_origin;
+	vector to, org = e.sim_origin;
 	float d;
 
-	if (self.at_rest)
+	if (e.at_rest)
 	{
 		// A grenade at rest stays put until the server says it moved again.
-		if (self.velocity_z >= 1 / 32)
-			self.at_rest = FALSE;
+		if (e.velocity_z >= 1 / 32)
+			e.at_rest = FALSE;
 		else
 			return;
 	}
 
-	self.velocity_z -= 0.5 * dt * sv_gravity;
+	e.velocity_z -= 0.5 * dt * sv_gravity;
 
 	if (spin)
 	{
-		self.sim_angles += self.avelocity * dt;
-		self.angles = self.sim_angles;
+		e.sim_angles += e.avelocity * dt;
+		e.angles = e.sim_angles;
 	}
 
 	for (bumps = 0; bumps < BOUNCE_MAX_BUMPS && movetime > 0; bumps++)
 	{
-		to = org + self.velocity * movetime;
-		traceline(org, to, MOVE_NOMONSTERS, self);
+		to = org + e.velocity * movetime;
+		traceline(org, to, MOVE_NOMONSTERS, e);
 		org = trace_endpos;
 
 		if (trace_fraction == 1)
 			break;
 
 		movetime *= 1 - min(1, trace_fraction);
-		self.velocity = Projectile_ClipVelocity(self.velocity, trace_plane_normal,
-		                                        1 + BOUNCE_FACTOR);
+		e.velocity = Projectile_ClipVelocity(e.velocity, trace_plane_normal,
+		                                     1 + BOUNCE_FACTOR);
 
-		d = trace_plane_normal * self.velocity;
+		d = trace_plane_normal * e.velocity;
 
 		// Settle once it is only trickling along a floor.
 		if (trace_plane_normal_z > 0.7 && d < bouncestop && d > -bouncestop)
 		{
-			self.at_rest = TRUE;
-			self.velocity = '0 0 0';
-			self.avelocity = '0 0 0';
+			e.at_rest = TRUE;
+			e.velocity = '0 0 0';
+			e.avelocity = '0 0 0';
 			break;
 		}
 
-		self.at_rest = FALSE;
+		e.at_rest = FALSE;
 	}
 
-	if (!self.at_rest)
-		self.velocity_z -= 0.5 * dt * sv_gravity;
+	if (!e.at_rest)
+		e.velocity_z -= 0.5 * dt * sv_gravity;
 
-	self.sim_origin = org;
+	e.sim_origin = org;
+}
+
+// Step the grenade simulation up to the present.
+static void Projectile_Advance(float spin)
+{
+	float dt = max(0, time - self.sim_time);
+
+	self.sim_time = time;
+
+	if (dt > 0)
+		Projectile_Bounce(self, dt, spin);
+}
+
+// Where a straight-line projectile is now, carried on from its last sample.
+static vector Projectile_LinearOrigin(entity e)
+{
+	return e.s_origin + e.s_velocity * (time - e.s_recv);
 }
 
 // Ease out whatever disagreement was left when we took over a prediction.
@@ -252,8 +250,7 @@ static vector Projectile_Smoothed(vector authoritative)
  */
 static float Projectile_MoveLocal(void)
 {
-	vector ahead, from;
-	float dt;
+	vector org;
 
 	// A prediction only has to last until the server's copy could arrive.
 	if (time >= self.endtime)
@@ -265,20 +262,17 @@ static float Projectile_MoveLocal(void)
 
 	if (self.proj_kind == PROJ_GRENADE)
 	{
-		dt = max(0, time - self.sim_time);
-		self.sim_time = time;
-		if (dt > 0)
-			Projectile_Bounce(dt, TRUE);
-		self.draw_origin = self.sim_origin;
+		Projectile_Advance(TRUE);
+		setorigin(self, self.sim_origin);
 		return TRUE;
 	}
 
-	self.draw_origin = self.start + self.velocity * (time - self.starttime);
+	org = Projectile_LinearOrigin(self);
 
-	ahead = self.draw_origin + self.velocity * 0.02;
-	from = self.have_draw_origin ? self.last_draw_origin : self.start;
-
-	traceline(from, ahead, MOVE_NOMONSTERS, self);
+	// Sweep from where it was drawn to a little beyond where it is going, so it
+	// stops at the wall rather than a frame inside it.
+	traceline(self.origin, org + self.s_velocity * IMPACT_LOOKAHEAD,
+	          MOVE_NOMONSTERS, self);
 	if (trace_fraction < 1)
 	{
 		if (autocvar_cl_predict_debug)
@@ -286,6 +280,7 @@ static float Projectile_MoveLocal(void)
 		return FALSE;
 	}
 
+	setorigin(self, org);
 	return TRUE;
 }
 
@@ -298,28 +293,24 @@ static void Projectile_MoveServerGrenade(void)
 {
 	float dt;
 
-	dt = max(0, time - self.sim_time);
-	self.sim_time = time;
-	if (dt > 0)
-		Projectile_Bounce(dt, FALSE);
+	Projectile_Advance(FALSE);
 
 	// Spin runs on render time so it stays smooth between corrections.
 	dt = max(0, cltime - self.angle_time);
 	self.angle_time = cltime;
 	if (dt > 0)
 	{
-		self.sim_angles += self.avelocity * min(dt, 0.05);
+		self.sim_angles += self.avelocity * min(dt, SPIN_STEP_MAX);
 		self.angles = self.sim_angles;
 	}
 
-	self.draw_origin = Projectile_Smoothed(self.sim_origin);
+	setorigin(self, Projectile_Smoothed(self.sim_origin));
 }
 
 // Everything else flies straight, so carry it on from the last known position.
 static void Projectile_MoveServerLinear(void)
 {
-	self.draw_origin = Projectile_Smoothed(self.s_origin
-	                                       + self.s_velocity * (time - self.s_recv));
+	setorigin(self, Projectile_Smoothed(Projectile_LinearOrigin(self)));
 }
 
 float Projectile_Predraw(void)
@@ -347,8 +338,6 @@ float Projectile_Predraw(void)
 		Projectile_MoveServerLinear();
 	}
 
-	setorigin(self, self.draw_origin);
-
 	// Level 2 traces the first few frames of flight; level 1 keeps to the events
 	// worth noticing, so it stays readable while playing.
 	if (autocvar_cl_predict_debug > 1 && self.debug_count < 5)
@@ -356,25 +345,25 @@ float Projectile_Predraw(void)
 		self.debug_count++;
 		print(sprintf("proj: %s #%g at %s age %g\n",
 		              self.is_local ? "local" : "server",
-		              self.entnum, vtos(self.draw_origin), time - self.s_recv));
+		              self.entnum, vtos(self.origin), time - self.s_recv));
 	}
-
-	self.last_draw_origin = self.draw_origin;
-	self.have_draw_origin = TRUE;
 
 	// Our own projectile starts inside our own face; drawing it there only
 	// flickers, so carry the trail along without rendering it.
 	if (self.owner_num == player_localentnum
-		&& vlen(self.draw_origin - getproperty(VF_ORIGIN)) < TOO_CLOSE_RADIUS)
+		&& vlen(self.origin - getproperty(VF_ORIGIN)) < TOO_CLOSE_RADIUS)
 	{
-		self.trail_org = self.draw_origin;
+		self.trail_org = self.origin;
 		return PREDRAW_NEXT;
 	}
 
-	Projectile_EmitTrail(self.draw_origin);
+	Projectile_EmitTrail();
 
 	if (self.modelflags & MF_ROCKET)
-		dynamiclight_add(self.draw_origin, 200 * cvar("r_rocketlight"), '0.4 0.2 0.05');
+	{
+		dynamiclight_add(self.origin, ROCKET_LIGHT_RADIUS * cvar("r_rocketlight"),
+		                 ROCKET_LIGHT_COLOUR);
+	}
 
 	return PREDRAW_AUTOADD;
 }
@@ -389,7 +378,7 @@ float Projectile_Predraw(void)
  */
 float Projectile_SpawnLocal(float widx, float a)
 {
-	entity proj, oself;
+	entity proj;
 	vector org, vel, off;
 	float speed;
 
@@ -430,8 +419,11 @@ float Projectile_SpawnLocal(float widx, float a)
 	proj.owner_num = player_localentnum;
 	proj.velocity = vel;
 	proj.angles = vectoangles(vel);
-	proj.endtime = time + max(ws_predicted.ping + TRAIL_PERIOD, 0.05);
-	proj.s_recv = time;	// so its reported age means time since it was fired
+	proj.endtime = time + max(ws_predicted.ping + TRAIL_PERIOD, LOCAL_MIN_LIFETIME);
+
+	// The server advances a newly spawned missile by one frame before anyone
+	// sees it, so it left the muzzle that long ago.
+	proj.s_recv = time - NEWMIS_STEP;
 
 	if (proj.modelflags & MF_GRENADE)
 	{
@@ -443,19 +435,17 @@ float Projectile_SpawnLocal(float widx, float a)
 		proj.angle_time = cltime;
 		proj.trail_fx = Projectile_TrailEffect(TRUE);
 
-		// The server advances a newly spawned missile by one frame before
-		// anyone sees it; match that so the arcs line up.
-		oself = self;
-		self = proj;
-		Projectile_Bounce(NEWMIS_STEP, TRUE);
-		self = oself;
+		// Match that step so the arcs line up.
+		Projectile_Bounce(proj, NEWMIS_STEP, TRUE);
 		org = proj.sim_origin;
 	}
 	else
 	{
 		proj.proj_kind = PROJ_LINEAR;
-		proj.start = org;
-		proj.starttime = time - NEWMIS_STEP;
+
+		// Extrapolated from the muzzle rather than simulated.
+		proj.s_origin = org;
+		proj.s_velocity = vel;
 		org += vel * NEWMIS_STEP;
 
 		if (proj.modelflags & MF_ROCKET)
@@ -464,9 +454,6 @@ float Projectile_SpawnLocal(float widx, float a)
 
 	setorigin(proj, org);
 	proj.trail_org = org;
-	proj.trail_seeded = TRUE;
-	proj.last_draw_origin = org;
-	proj.have_draw_origin = TRUE;
 
 	if (autocvar_cl_predict_debug)
 		print(sprintf("proj: predicted %s on frame %g\n",
@@ -504,7 +491,7 @@ static void Projectile_TakeOver(entity server_proj, vector server_origin)
 
 		local_org = (e.proj_kind == PROJ_GRENADE)
 			? e.sim_origin
-			: e.start + e.velocity * (time - e.starttime);
+			: Projectile_LinearOrigin(e);
 
 		diff = server_origin - local_org;
 		dist = vlen(diff);
@@ -539,19 +526,15 @@ static void Projectile_TakeOver(entity server_proj, vector server_origin)
 	if (best == world)
 		return;
 
-	smooth_from = best.have_draw_origin ? best.last_draw_origin : server_origin;
+	smooth_from = best.origin;
 	speed = max(1, vlen(best.velocity));
-	ease = best.have_draw_origin
-		? bound(HANDOFF_MIN_TIME, best_dist / speed * 6, HANDOFF_MAX_TIME)
-		: bound(0.026, best_dist / speed * 0.5, 0.05);
+	ease = bound(HANDOFF_MIN_TIME, best_dist / speed * HANDOFF_EASE_FACTOR,
+	             HANDOFF_MAX_TIME);
 
 	// Continue the trail from where ours had reached, and walk the rendered
 	// position across to the server's over the easing window.
 	server_proj.trail_org = best.trail_org;
-	server_proj.trail_seeded = best.trail_seeded;
 	server_proj.trail_time = best.trail_time;
-	server_proj.last_draw_origin = smooth_from;
-	server_proj.have_draw_origin = TRUE;
 
 	server_proj.handoff_from = cltime;
 	server_proj.handoff_until = cltime + ease;
@@ -571,7 +554,7 @@ void Projectile_Parse(float isnew)
 {
 	float sendflags = ReadByte();
 	vector spawn_org, here;
-	float had_origin = FALSE;
+	float had_origin = FALSE, trail_from_muzzle = FALSE;
 
 	if (isnew)
 	{
@@ -623,10 +606,10 @@ void Projectile_Parse(float isnew)
 
 		// Start the trail at the muzzle, but only when that is plausibly where
 		// this projectile came from.
-		if (isnew && vlen(spawn_org - self.s_origin) < 150)
+		if (isnew && vlen(spawn_org - self.s_origin) < TRAIL_SEED_RANGE)
 		{
 			self.trail_org = spawn_org;
-			self.trail_seeded = TRUE;
+			trail_from_muzzle = TRUE;
 		}
 	}
 
@@ -660,17 +643,12 @@ void Projectile_Parse(float isnew)
 	{
 		here = (self.proj_kind == PROJ_GRENADE)
 			? self.s_origin
-			: self.s_origin + self.s_velocity * (time - self.s_recv);
+			: Projectile_LinearOrigin(self);
 
 		setorigin(self, here);
-		self.last_draw_origin = here;
-		self.have_draw_origin = TRUE;
 
-		if (!self.trail_seeded)
-		{
+		if (!trail_from_muzzle)
 			self.trail_org = here;
-			self.trail_seeded = TRUE;
-		}
 
 		Projectile_TakeOver(self, here);
 	}

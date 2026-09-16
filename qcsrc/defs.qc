@@ -121,12 +121,21 @@ const float HANDOFF_PERP			= 8;	// ... or this far off the flight line
 const float HANDOFF_PHASE			= 256;	// ... and this far along it
 const float HANDOFF_MIN_TIME		= 0.15;
 const float HANDOFF_MAX_TIME		= 0.3;
+const float HANDOFF_EASE_FACTOR		= 6;	// ... easing this much of the gap per second
 
 const float TRAIL_PERIOD		= 0.013;	// spacing between trail emissions
+const float TRAIL_SEED_RANGE	= 150;	// trust a muzzle position no further out
 const vector GRENADE_SPIN		= '300 300 300';
+const float SPIN_STEP_MAX		= 0.05;	// cap one frame's worth of tumble
 const float TOO_CLOSE_RADIUS	= 8;	// hide our own projectile inside this
 const float BOUNCE_FACTOR		= 0.5;	// grenade restitution
 const float BOUNCE_MAX_BUMPS	= 5;
+
+const float IMPACT_LOOKAHEAD	= 0.02;	// sweep this far past the present position
+const float LOCAL_MIN_LIFETIME	= 0.05;	// a prediction lasts at least this long
+
+const float ROCKET_LIGHT_RADIUS	= 200;
+const vector ROCKET_LIGHT_COLOUR	= '0.4 0.2 0.05';
 
 const float SOUND_TOKEN_TTL		= 1.0;	// unmatched suppression tokens expire
 const float MAX_SOUND_TOKENS	= 8;
