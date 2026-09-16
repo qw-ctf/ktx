@@ -9,9 +9,9 @@
  * sending its own, and retract ours when we do.
  */
 
-float	beam_until;		// keep re-issuing our beam until this client time
-float	beam_server_until;	// the server is feeding us beams until this client time
-float	beam_issued;		// we have a bolt live that needs retracting
+static float	beam_until;		// keep re-issuing our beam until this client time
+static float	beam_server_until;	// the server is feeding us beams until this client time
+static float	beam_issued;		// we have a bolt live that needs retracting
 
 void Beam_Clear(void)
 {

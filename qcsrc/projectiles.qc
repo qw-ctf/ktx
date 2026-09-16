@@ -134,7 +134,7 @@ static void Projectile_EmitTrail(void)
  */
 static void Projectile_TraceWorldOnly(entity e)
 {
-	e.dimension_hit = 254;
+	e.dimension_hit = TRACE_WORLD_ONLY;
 }
 
 static vector Projectile_ClipVelocity(vector vel, vector normal, float overbounce)
@@ -313,7 +313,7 @@ static void Projectile_MoveServerLinear(void)
 	setorigin(self, Projectile_Smoothed(Projectile_LinearOrigin(self)));
 }
 
-float Projectile_Predraw(void)
+static float Projectile_Predraw(void)
 {
 	if (!self.modelindex)
 		return PREDRAW_NEXT;
@@ -373,10 +373,14 @@ float Projectile_Predraw(void)
 // ==========================================================================
 
 /*
+ * Spawn the projectile an animation state fires, as it would have left the
+ * player on the input frame being replayed.
+ *
  * Returns true when the shot has been dealt with, so the replay does not keep
  * retrying it on later frames.
  */
-float Projectile_SpawnLocal(float widx, float a)
+float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
+                            float predflags)
 {
 	entity proj;
 	vector org, vel, off;
@@ -392,7 +396,7 @@ float Projectile_SpawnLocal(float widx, float a)
 	 * Without antilag the server will not rewind to meet us, so a projectile
 	 * drawn here would not be where the server puts it.
 	 */
-	if (!ws_predicted.ping)
+	if (!ping)
 		return FALSE;
 
 	if (weapons[widx].anim[a].proj_model == "")
@@ -400,10 +404,10 @@ float Projectile_SpawnLocal(float widx, float a)
 
 	makevectors(input_angles);
 
-	off = Weapon_ProjectileOffset(widx, ws_predicted.predflags, weapons[widx].anim[a].proj_off);
-	speed = Weapon_ProjectileSpeedScale(widx, ws_predicted.predflags);
+	off = Weapon_ProjectileOffset(widx, predflags, weapons[widx].anim[a].proj_off);
+	speed = Weapon_ProjectileSpeedScale(widx, predflags);
 
-	org = Pred_OriginForFrame(replay_frame);
+	org = Pred_OriginForFrame(frame);
 	org += v_right * off_x + v_forward * off_y;
 	org_z += off_z;
 
@@ -419,7 +423,7 @@ float Projectile_SpawnLocal(float widx, float a)
 	proj.owner_num = player_localentnum;
 	proj.velocity = vel;
 	proj.angles = vectoangles(vel);
-	proj.endtime = time + max(ws_predicted.ping + TRAIL_PERIOD, LOCAL_MIN_LIFETIME);
+	proj.endtime = time + max(ping + TRAIL_PERIOD, LOCAL_MIN_LIFETIME);
 
 	// The server advances a newly spawned missile by one frame before anyone
 	// sees it, so it left the muzzle that long ago.
@@ -457,7 +461,7 @@ float Projectile_SpawnLocal(float widx, float a)
 
 	if (autocvar_cl_predict_debug)
 		print(sprintf("proj: predicted %s on frame %g\n",
-		               weapons[widx].anim[a].proj_model, replay_frame));
+		               weapons[widx].anim[a].proj_model, frame));
 
 	return TRUE;
 }

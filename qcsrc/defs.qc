@@ -13,7 +13,10 @@
  *                usercmd durations. Drives the state machine exclusively.
  *   time         interpolated server time. Drives projectile flight and the
  *                extrapolation of server-sent projectiles.
- *   cltime       real client time. Only used for effect-rate limiting.
+
+ *   cltime       real client time, which never stops. Drives everything the
+ *                player sees directly: trail spacing, the view model blend,
+ *                grenade spin and the beam.
  */
 
 // ==========================================================================
@@ -83,6 +86,12 @@ const float TE_LIGHTNING2	= 6;
 
 // the one usercmd button the weapon state machine cares about
 const float BUTTON_ATTACK	= 1;
+
+/*
+ * A dimension_hit with the low bit cleared, which is the bit the engine gives
+ * network entities. Traces from an entity carrying this see the world alone.
+ */
+const float TRACE_WORLD_ONLY	= 254;
 
 // ==========================================================================
 // Weapon definition flags
@@ -165,35 +174,10 @@ var float autocvar_cl_predict_debug			= 0;
 
 // ==========================================================================
 // Shared state
+//
+// Everything else each module keeps to itself; the files are listed in
+// progs.src in dependency order, so nothing here needs declaring ahead.
 // ==========================================================================
 
-// Predicted player origin per input frame. The engine only exposes its
-// prediction for the current frame, so we sample it each view frame and use
-// the stored value when spawning a projectile for an earlier frame.
-vector	origin_hist[PRED_BACKUP];
-float	origin_hist_frame[PRED_BACKUP];
-
-float	player_playable;	// alive, in play, not spectating
-float	playable_pending;	// became playable; waiting for a fresh weapon state
-float	sv_gravity;
-
-entity	viewweapon;			// the entity carrying our predicted view model
-
-// Effect high-water marks. Replaying repeats frames we have already seen, so
-// one-shot effects record the newest frame they fired on.
-float	last_sound_frame;
-float	last_projectile_frame;
-
-// Set for the duration of one replayed frame that is allowed to fire effects.
-float	frame_may_sound;
-float	frame_may_projectile;
-float	replay_frame;
-
-float Pred_Enabled(void);
-float Pred_SoundEnabled(void);
-float Pred_ProjectilesEnabled(void);
-vector Pred_OriginForFrame(float f);
-void Sound_PlayPredicted(string sample, float chan);
-float Projectile_SpawnLocal(float widx, float a);
-void Beam_Clear(void);
-void Beam_Predict(void);
+entity	viewweapon;	// the entity carrying our predicted view model
+float	sv_gravity;	// the server's, which csqc cannot otherwise see

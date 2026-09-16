@@ -1,109 +1,6 @@
 /*
- * Entry points and per-frame bookkeeping.
+ * Entry points: what the engine calls, and the order things happen in a frame.
  */
-
-float Pred_Enabled(void)
-{
-	if (autocvar_cl_nopred_weapon)
-		return FALSE;
-
-	// A demo has no input frames to replay and no local player to predict for.
-	if (isdemo())
-		return FALSE;
-
-	if (intermission)
-		return FALSE;
-
-	return TRUE;
-}
-
-/*
- * Prediction is only honest when the server rewinds to meet the client. Without
- * antilag a predicted shot would not agree with what the server does with it,
- * so these default to following the server's setting.
- */
-static float Pred_AntilagActive(void)
-{
-	return serverkey("sv_antilag") == "1";
-}
-
-float Pred_SoundEnabled(void)
-{
-	if (autocvar_cl_predict_weaponsound >= 2)
-		return TRUE;
-	if (!autocvar_cl_predict_weaponsound)
-		return FALSE;
-
-	return Pred_AntilagActive();
-}
-
-float Pred_ProjectilesEnabled(void)
-{
-	if (autocvar_cl_predict_projectiles >= 2)
-		return TRUE;
-	if (!autocvar_cl_predict_projectiles)
-		return FALSE;
-
-	return Pred_AntilagActive();
-}
-
-// ==========================================================================
-// Predicted origin history
-//
-// A projectile has to leave from where the player was on the frame that fired
-// it, which may be a few frames back. The engine only ever exposes its
-// prediction for the present, so we keep a short history of it.
-// ==========================================================================
-
-static void Pred_RecordOrigin(void)
-{
-	float slot = clientcommandframe & PRED_MASK;
-
-	origin_hist[slot] = pmove_org;
-	origin_hist_frame[slot] = clientcommandframe;
-}
-
-vector Pred_OriginForFrame(float f)
-{
-	float slot = f & PRED_MASK;
-
-	// At low frame rates some input frames never got sampled; the present
-	// position is the closest thing we have.
-	if (origin_hist_frame[slot] != f)
-		return pmove_org;
-
-	return origin_hist[slot];
-}
-
-// ==========================================================================
-// Player status
-// ==========================================================================
-
-static void Pred_UpdatePlayerState(void)
-{
-	float was_playable = player_playable;
-
-	player_playable = TRUE;
-
-	if (getstatf(STAT_HEALTH) <= 0)
-		player_playable = FALSE;
-	if (intermission)
-		player_playable = FALSE;
-	if (getplayerkeyfloat(player_localnum, "*spectator"))
-		player_playable = FALSE;
-
-	/*
-	 * The player just became playable, by respawning or by stopping spectating.
-	 * The weapon snapshot we hold predates that, so hold off until a fresh one
-	 * arrives rather than animating from stale state.
-	 */
-	if (player_playable && !was_playable)
-	{
-		playable_pending = TRUE;
-		Beam_Clear();
-		lg_twidth = 0;
-	}
-}
 
 // ==========================================================================
 // Entry points
@@ -123,7 +20,7 @@ void CSQC_Init(float apilevel, string enginename, float engineversion)
 	viewweapon = spawn();
 	viewweapon.renderflags = RF_VIEWMODEL;
 	// It doubles as the entity the predicted bolt traces with; see Beam_Draw.
-	viewweapon.dimension_hit = 254;
+	viewweapon.dimension_hit = TRACE_WORLD_ONLY;
 
 	sv_gravity = 800;
 }
@@ -201,7 +98,11 @@ void CSQC_UpdateView(float vwidth, float vheight, float notmenu)
 	setproperty(VF_DRAWCROSSHAIR, TRUE);
 
 	Pred_RecordOrigin();
-	Pred_UpdatePlayerState();
+
+	// Coming back into play: every prediction we hold belongs to the life that
+	// just ended.
+	if (Pred_UpdatePlayer())
+		WeaponState_Discard();
 
 	/*
 	 * Replay first. addentities() runs the projectile predraws and turns beams
@@ -219,6 +120,29 @@ void CSQC_UpdateView(float vwidth, float vheight, float notmenu)
 		addentities(MASK_VIEWMODEL);
 
 	renderscene();
+}
+
+/*
+ * The engine asks before playing any server sound. Returning true drops it,
+ * which is how the server's echo of a sound we already predicted is suppressed.
+ */
+float CSQC_Event_Sound(float entnum, float channel, string soundname,
+                       float vol, float attenuation, vector pos,
+                       float pitchmod, float flags)
+{
+	if (!Pred_Enabled() || !Pred_SoundEnabled())
+		return FALSE;
+
+	// Nothing was predicted for this state, so the server's sound is the only one.
+	if (!Pred_ServerAllows(ws_server.predflags))
+		return FALSE;
+
+	// Only ever silence our own weapon. While spectating, player_localentnum is
+	// the tracked player, whose sounds we are not predicting.
+	if (!player_playable || entnum != player_localentnum)
+		return FALSE;
+
+	return Sound_Consume(soundname, channel);
 }
 
 // Declared __used by the engine definitions, so it must exist.

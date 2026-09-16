@@ -195,7 +195,7 @@ weapon_t weapons[9] =
 
 // Cached model indices, filled on first use: the view model is looked up on
 // every rendered frame.
-float weapon_modelindex[weapons.length];
+static float weapon_modelindex[weapons.length];
 
 float Weapon_Valid(float idx)
 {

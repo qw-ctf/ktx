@@ -5,9 +5,10 @@
 fteextensions.qc
 
 defs.qc
+pred.qc
 weapon_table.qc
-weapon_state.qc
-weapon_sounds.qc
-projectiles.qc
 beam.qc
+projectiles.qc
+weapon_sounds.qc
+weapon_state.qc
 main.qc

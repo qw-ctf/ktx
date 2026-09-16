@@ -18,19 +18,29 @@ typedef struct
 } wstate_t;
 
 wstate_t	ws_server;		// the last snapshot the server sent
-wstate_t	ws_predicted;	// scratch, rebuilt from ws_server every view frame
-wstate_t	ws_presented;	// what the view model actually shows
+static wstate_t	ws_predicted;	// scratch, rebuilt from ws_server every view frame
+static wstate_t	ws_presented;	// what the view model actually shows
 
-float	ws_have_state;		// a snapshot has arrived
-float	ws_state_frame;		// input frame the snapshot already accounts for
-float	weapon_generation;	// respawn counter, -1 until the first snapshot
-float	respawn_guard_until;// server ignores attacks until this client_time
-float	lg_twidth;			// lightning sound may retrigger from this client_time
+static float	ws_have_state;		// a snapshot has arrived
+static float	ws_state_frame;		// input frame the snapshot already accounts for
+static float	ws_stale;			// holding a snapshot from a previous life
+static float	weapon_generation;	// respawn counter, -1 until the first snapshot
+static float	respawn_guard_until;// server ignores attacks until this client_time
+static float	lg_twidth;			// lightning sound may retrigger from this client_time
 
-// The view model interpolates between two poses; these track the swap.
-float	vw_lerptime;
+// The view model interpolates between two poses; this stamps the swap.
+static float	vw_lerptime;
 
-void Weapon_EnterState(float idx, float buttons);
+/*
+ * Replay walks the same input frames again every time we draw, so a one-shot
+ * effect records the newest frame it has already fired on, and each replayed
+ * frame is told whether it is allowed to fire one.
+ */
+static float	replay_frame;
+static float	frame_may_sound;
+static float	frame_may_projectile;
+static float	last_sound_frame;
+static float	last_projectile_frame;
 
 void WeaponState_Reset(void)
 {
@@ -42,6 +52,25 @@ void WeaponState_Reset(void)
 	last_sound_frame = 0;
 	last_projectile_frame = 0;
 	vw_lerptime = 0;
+}
+
+// The lightning gun owns two pieces of state outside the snapshot: its sound
+// cadence and the predicted bolt.
+static void WeaponState_ResetLightning(void)
+{
+	lg_twidth = 0;
+	Beam_Clear();
+}
+
+/*
+ * Stop predicting until a fresh snapshot arrives. Whatever we hold describes a
+ * life that has ended, and animating from it would replay the previous life's
+ * last shot.
+ */
+void WeaponState_Discard(void)
+{
+	ws_stale = TRUE;
+	WeaponState_ResetLightning();
 }
 
 // ==========================================================================
@@ -100,8 +129,7 @@ void WeaponState_Parse(float isnew)
 	if (weapon_generation >= 0 && generation != weapon_generation)
 	{
 		respawn_guard_until = ws_server.client_time + RESPAWN_GUARD;
-		lg_twidth = 0;
-		Beam_Clear();
+		WeaponState_ResetLightning();
 	}
 	weapon_generation = generation;
 
@@ -123,7 +151,7 @@ void WeaponState_Parse(float isnew)
 	 */
 	ws_state_frame = servercommandframe;
 	ws_have_state = TRUE;
-	playable_pending = FALSE;
+	ws_stale = FALSE;
 
 	if (isnew)
 		vw_lerptime = 0;
@@ -136,13 +164,6 @@ void WeaponState_Parse(float isnew)
 // next one. client_thinkindex names the state that is scheduled, not the one
 // being shown.
 // ==========================================================================
-
-// The item bits the player is carrying. STAT_ITEMS packs items2 above these,
-// so the low 23 are the ones that name a weapon.
-static float Player_Items(void)
-{
-	return getstatbits(STAT_ITEMS, 0, 23);
-}
 
 // Whether the player could switch to this weapon: they have to be carrying it
 // and hold enough of what it fires.
@@ -182,10 +203,7 @@ static float Weapon_Switch(float impulse)
 		return SWITCH_APPLIED;
 
 	if (Weapon_ItemFlag(ws_predicted.weapon_index) == IT_LIGHTNING)
-	{
-		lg_twidth = 0;
-		Beam_Clear();
-	}
+		WeaponState_ResetLightning();
 
 	ws_predicted.weapon_index = idx;
 	ws_predicted.client_thinkindex = 0;
@@ -246,8 +264,11 @@ static void Weapon_PlayEffects(float idx, float a, float buttons)
 
 	if (frame_may_projectile && (flags & ANIM_PROJECTILE))
 	{
-		if (Projectile_SpawnLocal(idx, a))
+		if (Projectile_SpawnLocal(idx, a, replay_frame, ws_predicted.ping,
+		                          ws_predicted.predflags))
+		{
 			last_projectile_frame = max(last_projectile_frame, replay_frame);
+		}
 	}
 
 	if (frame_may_projectile && (flags & ANIM_LGBEAM))
@@ -257,7 +278,7 @@ static void Weapon_PlayEffects(float idx, float a, float buttons)
 	}
 }
 
-void Weapon_EnterState(float a, float buttons)
+static void Weapon_EnterState(float a, float buttons)
 {
 	float idx = ws_predicted.weapon_index;
 
@@ -419,25 +440,6 @@ static void Weapon_Attack(float buttons)
 // Replay
 // ==========================================================================
 
-/*
- * Whether this weapon state can be predicted at all.
- *
- * Instagib's coilgun replaces the shotgun's model, sound and refire delay, but
- * the flag does not say which instagib mode is running and the delays differ
- * between them. Guessing would desync the animation and play the wrong sound
- * alongside the server's, so we stand aside and let the engine draw the gun.
- */
-float Weapon_Predictable(float predflags)
-{
-	if (predflags == PRDFL_FORCEOFF)
-		return FALSE;
-
-	if (predflags & PRDFL_COILGUN)
-		return FALSE;
-
-	return TRUE;
-}
-
 static void Weapon_Simulate(void)
 {
 	float switched = SWITCH_APPLIED;
@@ -448,7 +450,7 @@ static void Weapon_Simulate(void)
 	 * started or the player is hooked. Keep the clock moving and hold the
 	 * weapon closed.
 	 */
-	if (!Weapon_Predictable(ws_predicted.predflags))
+	if (!Pred_ServerAllows(ws_predicted.predflags))
 	{
 		ws_predicted.client_time += input_timelength;
 		ws_predicted.impulse = 0;
@@ -505,7 +507,7 @@ void WeaponState_Replay(void)
 	 * predates that. Replaying now would animate, and fire the effects of, a
 	 * shot belonging to the previous life.
 	 */
-	if (playable_pending)
+	if (ws_stale)
 	{
 		ws_presented = ws_server;
 		return;
@@ -572,13 +574,13 @@ static float WeaponState_Visible(void)
 {
 	if (!Pred_Enabled())
 		return FALSE;
-	if (!ws_have_state || playable_pending)
+	if (!ws_have_state || ws_stale)
 		return FALSE;
 	if (!player_playable)
 		return FALSE;
 	if (!Weapon_Valid(ws_presented.weapon_index))
 		return FALSE;
-	if (!Weapon_Predictable(ws_presented.predflags))
+	if (!Pred_ServerAllows(ws_presented.predflags))
 		return FALSE;
 	if (!cvar("r_drawviewmodel"))
 		return FALSE;

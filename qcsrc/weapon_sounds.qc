@@ -19,7 +19,7 @@ typedef struct
 	float	expires;	// a token is live while this is still ahead of cltime
 } token_t;
 
-token_t tokens[MAX_SOUND_TOKENS];
+static token_t tokens[MAX_SOUND_TOKENS];
 
 void Sound_Reset(void)
 {
@@ -67,24 +67,11 @@ void Sound_PlayPredicted(string sample, float chan)
 }
 
 /*
- * The engine asks before playing any server sound. Returning true drops it.
+ * Take the token matching a sound the server is about to play, if we hold one.
+ * Returns true when the caller should drop that sound as our own echo.
  */
-float CSQC_Event_Sound(float entnum, float channel, string soundname,
-                       float vol, float attenuation, vector pos,
-                       float pitchmod, float flags)
+float Sound_Consume(string soundname, float channel)
 {
-	if (!Pred_Enabled() || !Pred_SoundEnabled())
-		return FALSE;
-
-	// Nothing was predicted for this state, so the server's sound is the only one.
-	if (!Weapon_Predictable(ws_server.predflags))
-		return FALSE;
-
-	// Only ever silence our own weapon. While spectating, player_localentnum is
-	// the tracked player, whose sounds we are not predicting.
-	if (!player_playable || entnum != player_localentnum)
-		return FALSE;
-
 	for (float i = 0; i < tokens.length; i++)
 	{
 		if (tokens[i].expires <= cltime)
