@@ -12,42 +12,42 @@
  * prediction the server never confirms cannot silence a later real sound.
  */
 
-string	token_name[MAX_SOUND_TOKENS];
-float	token_chan[MAX_SOUND_TOKENS];
-float	token_expires[MAX_SOUND_TOKENS];
+typedef struct
+{
+	string	sample;
+	float	chan;
+	float	expires;	// a token is live while this is still ahead of cltime
+} token_t;
+
+token_t tokens[MAX_SOUND_TOKENS];
 
 void Sound_Reset(void)
 {
-	float i;
-
-	for (i = 0; i < MAX_SOUND_TOKENS; i++)
-	{
-		token_name[i] = "";
-		token_chan[i] = 0;
-		token_expires[i] = 0;
-	}
+	// Expiring a token is all it takes to retire it; nothing reads the rest.
+	for (float i = 0; i < tokens.length; i++)
+		tokens[i].expires = 0;
 }
 
 static void Sound_PushToken(string sample, float chan)
 {
-	float i, oldest = 0;
+	float oldest = 0;
 
-	for (i = 0; i < MAX_SOUND_TOKENS; i++)
+	for (float i = 0; i < tokens.length; i++)
 	{
-		if (token_expires[i] <= cltime)
+		if (tokens[i].expires <= cltime)
 		{
 			oldest = i;
 			break;
 		}
 
 		// All slots live: overwrite whichever expires first.
-		if (token_expires[i] < token_expires[oldest])
+		if (tokens[i].expires < tokens[oldest].expires)
 			oldest = i;
 	}
 
-	token_name[oldest] = sample;
-	token_chan[oldest] = chan;
-	token_expires[oldest] = cltime + SOUND_TOKEN_TTL;
+	tokens[oldest].sample = sample;
+	tokens[oldest].chan = chan;
+	tokens[oldest].expires = cltime + SOUND_TOKEN_TTL;
 }
 
 // Play a sound we are predicting, and arrange for the server's copy to be
@@ -73,8 +73,6 @@ float CSQC_Event_Sound(float entnum, float channel, string soundname,
                        float vol, float attenuation, vector pos,
                        float pitchmod, float flags)
 {
-	float i;
-
 	if (!Pred_Enabled() || !Pred_SoundEnabled())
 		return FALSE;
 
@@ -87,19 +85,19 @@ float CSQC_Event_Sound(float entnum, float channel, string soundname,
 	if (!player_playable || entnum != player_localentnum)
 		return FALSE;
 
-	for (i = 0; i < MAX_SOUND_TOKENS; i++)
+	for (float i = 0; i < tokens.length; i++)
 	{
-		if (token_expires[i] <= cltime)
+		if (tokens[i].expires <= cltime)
 			continue;
-		if (token_name[i] != soundname)
+		if (tokens[i].sample != soundname)
 			continue;
 
 		// A token on CHAN_AUTO was played on a channel of the engine's choosing,
 		// so accept the sound whatever channel it arrives on.
-		if (token_chan[i] != channel && token_chan[i] != CHAN_AUTO)
+		if (tokens[i].chan != channel && tokens[i].chan != CHAN_AUTO)
 			continue;
 
-		token_expires[i] = 0;
+		tokens[i].expires = 0;
 		return TRUE;
 	}
 

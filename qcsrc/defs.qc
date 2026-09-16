@@ -18,51 +18,68 @@
 
 // ==========================================================================
 // Wire protocol, mirrors ktx include/progs.h and include/g_consts.h
+//
+// The sendflag sets are bit lists, so they are written as such: each entry is
+// the next bit up, in the order the server writes the fields.
 // ==========================================================================
 
-#define EZCSQC_WEAPONINFO	1
-#define EZCSQC_PROJECTILE	2
+const float EZCSQC_WEAPONINFO	= 1;
+const float EZCSQC_PROJECTILE	= 2;
 
 // weapon state payload
-#define WEAPONINFO_INDEX		1
-#define WEAPONINFO_AMMO_SHELLS	2
-#define WEAPONINFO_AMMO_NAILS	4
-#define WEAPONINFO_AMMO_ROCKETS	8
-#define WEAPONINFO_AMMO_CELLS	16
-#define WEAPONINFO_ATTACK		32
-#define WEAPONINFO_TIMING		64
-#define WEAPONINFO_PRED_PING	128
+enumflags
+{
+	WEAPONINFO_INDEX,
+	WEAPONINFO_AMMO_SHELLS,
+	WEAPONINFO_AMMO_NAILS,
+	WEAPONINFO_AMMO_ROCKETS,
+	WEAPONINFO_AMMO_CELLS,
+	WEAPONINFO_ATTACK,
+	WEAPONINFO_TIMING,
+	WEAPONINFO_PRED_PING
+};
 
 // the weapon byte carries the respawn generation above the weapon index
-#define WEAPONINFO_WEAPON_MASK		0x0f
-#define WEAPONINFO_GENERATION_SHIFT	4
+const float WEAPONINFO_WEAPON_MASK		= 0x0f;
+const float WEAPONINFO_GENERATION_SHIFT	= 4;
 
 // projectile payload
-#define PROJECTILE_ORIGIN		1
-#define PROJECTILE_MODEL		2
-#define PROJECTILE_ANGLES		4
-#define PROJECTILE_OWNER		8
-#define PROJECTILE_SPAWN_ORIGIN	16
+enumflags
+{
+	PROJECTILE_ORIGIN,
+	PROJECTILE_MODEL,
+	PROJECTILE_ANGLES,
+	PROJECTILE_OWNER,
+	PROJECTILE_SPAWN_ORIGIN
+};
 
 // server prediction flags
-#define PRDFL_MIDAIR	1
-#define PRDFL_COILGUN	2
-#define PRDFL_YAWNMODE	4
-#define PRDFL_FORCEOFF	255
+enumflags
+{
+	PRDFL_MIDAIR,
+	PRDFL_COILGUN,
+	PRDFL_YAWNMODE
+};
+
+// Not a flag: the server sends this as the whole byte to disable prediction.
+const float PRDFL_FORCEOFF	= 255;
 
 // item bits, for the weapon a switch is allowed to select
-#define IT_SHOTGUN				1
-#define IT_SUPER_SHOTGUN		2
-#define IT_NAILGUN				4
-#define IT_SUPER_NAILGUN		8
-#define IT_GRENADE_LAUNCHER		16
-#define IT_ROCKET_LAUNCHER		32
-#define IT_LIGHTNING			64
-#define IT_AXE					4096
-#define IT_INVISIBILITY			524288
+enumflags
+{
+	IT_SHOTGUN,
+	IT_SUPER_SHOTGUN,
+	IT_NAILGUN,
+	IT_SUPER_NAILGUN,
+	IT_GRENADE_LAUNCHER,
+	IT_ROCKET_LAUNCHER,
+	IT_LIGHTNING,
+	IT_AXE			= 4096,
+	IT_INVISIBILITY	= 524288
+};
 
 // temp entity number we peek at
-#define TE_LIGHTNING2	6
+const float TE_LIGHTNING2	= 6;
 
 // ==========================================================================
 // Weapon definition flags

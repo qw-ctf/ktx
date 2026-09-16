@@ -16,9 +16,13 @@
  * be removed freely.
  */
 
+enum
+{
+	PROJ_LINEAR,	// rockets, nails: straight line
+	PROJ_GRENADE	// bounces under gravity
+};
+
 .float	proj_kind;
-#define PROJ_LINEAR		0	// rockets, nails: straight line
-#define PROJ_GRENADE	1	// bounces under gravity
 
 .vector	s_origin;		// last authoritative position
 .vector	s_velocity;
@@ -50,6 +54,7 @@
 .float	trail_time;
 .float	trail_seeded;
 
+.vector	draw_origin;		// where this frame puts it
 .vector	last_draw_origin;
 .float	have_draw_origin;
 .float	debug_count;
@@ -58,6 +63,23 @@
 .float	handoff_from;
 .float	handoff_until;
 .vector	handoff_delta;
+
+// ==========================================================================
+// Reading
+//
+// A vector constructor evaluates its components left to right, so these read
+// the three words in the order the server wrote them.
+// ==========================================================================
+
+static vector Projectile_ReadVector(void)
+{
+	return [ReadCoord(), ReadCoord(), ReadCoord()];
+}
+
+static vector Projectile_ReadAngles(void)
+{
+	return [ReadAngle(), ReadAngle(), ReadAngle()];
+}
 
 // ==========================================================================
 // Trails
@@ -138,9 +160,8 @@ static vector Projectile_ClipVelocity(vector vel, vector normal, float overbounc
 {
 	float backoff = (vel * normal) * overbounce;
 	vector out = vel - normal * backoff;
-	float i;
 
-	for (i = 0; i < 3; i++)
+	for (float i = 0; i < 3; i++)
 	{
 		if (out[i] > -0.1 && out[i] < 0.1)
 			out[i] = 0;
@@ -169,11 +190,11 @@ static void Projectile_Bounce(float dt, float spin)
 			return;
 	}
 
-	self.velocity_z = self.velocity_z - 0.5 * dt * sv_gravity;
+	self.velocity_z -= 0.5 * dt * sv_gravity;
 
 	if (spin)
 	{
-		self.sim_angles = self.sim_angles + self.avelocity * dt;
+		self.sim_angles += self.avelocity * dt;
 		self.angles = self.sim_angles;
 	}
 
@@ -186,7 +207,7 @@ static void Projectile_Bounce(float dt, float spin)
 		if (trace_fraction == 1)
 			break;
 
-		movetime = movetime * (1 - min(1, trace_fraction));
+		movetime *= 1 - min(1, trace_fraction);
 		self.velocity = Projectile_ClipVelocity(self.velocity, trace_plane_normal,
 		                                        1 + BOUNCE_FACTOR);
 
@@ -205,7 +226,7 @@ static void Projectile_Bounce(float dt, float spin)
 	}
 
 	if (!self.at_rest)
-		self.velocity_z = self.velocity_z - 0.5 * dt * sv_gravity;
+		self.velocity_z -= 0.5 * dt * sv_gravity;
 
 	self.sim_origin = org;
 }
@@ -225,11 +246,84 @@ static vector Projectile_Smoothed(vector authoritative)
 	return authoritative - self.handoff_delta * (1 - ease);
 }
 
-float Projectile_Predraw(void)
+/*
+ * Advance a prediction of our own. Returns false once it should stop existing:
+ * it has served its purpose, or it has run into something.
+ */
+static float Projectile_MoveLocal(void)
 {
-	vector org, authoritative, ahead, from;
+	vector ahead, from;
 	float dt;
 
+	// A prediction only has to last until the server's copy could arrive.
+	if (time >= self.endtime)
+	{
+		if (autocvar_cl_predict_debug)
+			print("proj: local expired unclaimed\n");
+		return FALSE;
+	}
+
+	if (self.proj_kind == PROJ_GRENADE)
+	{
+		dt = max(0, time - self.sim_time);
+		self.sim_time = time;
+		if (dt > 0)
+			Projectile_Bounce(dt, TRUE);
+		self.draw_origin = self.sim_origin;
+		return TRUE;
+	}
+
+	self.draw_origin = self.start + self.velocity * (time - self.starttime);
+
+	ahead = self.draw_origin + self.velocity * 0.02;
+	from = self.have_draw_origin ? self.last_draw_origin : self.start;
+
+	traceline(from, ahead, MOVE_NOMONSTERS, self);
+	if (trace_fraction < 1)
+	{
+		if (autocvar_cl_predict_debug)
+			print("proj: local hit world\n");
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+/*
+ * Grenades are corrected every server frame, because their bouncing cannot be
+ * reproduced from the initial snapshot alone. Simulate forward from the last
+ * correction rather than dead reckoning.
+ */
+static void Projectile_MoveServerGrenade(void)
+{
+	float dt;
+
+	dt = max(0, time - self.sim_time);
+	self.sim_time = time;
+	if (dt > 0)
+		Projectile_Bounce(dt, FALSE);
+
+	// Spin runs on render time so it stays smooth between corrections.
+	dt = max(0, cltime - self.angle_time);
+	self.angle_time = cltime;
+	if (dt > 0)
+	{
+		self.sim_angles += self.avelocity * min(dt, 0.05);
+		self.angles = self.sim_angles;
+	}
+
+	self.draw_origin = Projectile_Smoothed(self.sim_origin);
+}
+
+// Everything else flies straight, so carry it on from the last known position.
+static void Projectile_MoveServerLinear(void)
+{
+	self.draw_origin = Projectile_Smoothed(self.s_origin
+	                                       + self.s_velocity * (time - self.s_recv));
+}
+
+float Projectile_Predraw(void)
+{
 	if (!self.modelindex)
 		return PREDRAW_NEXT;
 
@@ -238,95 +332,49 @@ float Projectile_Predraw(void)
 		if (!Pred_ProjectilesEnabled())
 			return PREDRAW_NEXT;
 
-		// A prediction only has to last until the server's copy could arrive.
-		if (time >= self.endtime)
+		if (!Projectile_MoveLocal())
 		{
-			if (autocvar_cl_predict_debug)
-				print("proj: local expired unclaimed\n");
 			remove(self);
 			return PREDRAW_NEXT;
-		}
-
-		if (self.proj_kind == PROJ_GRENADE)
-		{
-			dt = max(0, time - self.sim_time);
-			self.sim_time = time;
-			if (dt > 0)
-				Projectile_Bounce(dt, TRUE);
-			org = self.sim_origin;
-		}
-		else
-		{
-			org = self.start + self.velocity * (time - self.starttime);
-			ahead = org + self.velocity * 0.02;
-			from = self.have_draw_origin ? self.last_draw_origin : self.start;
-
-			traceline(from, ahead, MOVE_NOMONSTERS, self);
-			if (trace_fraction < 1)
-			{
-				if (autocvar_cl_predict_debug)
-					print("proj: local hit world\n");
-				remove(self);
-				return PREDRAW_NEXT;
-			}
 		}
 	}
 	else if (self.proj_kind == PROJ_GRENADE)
 	{
-		// Grenades are corrected every server frame, so simulate forward from
-		// the last correction rather than dead reckoning.
-		dt = max(0, time - self.sim_time);
-		self.sim_time = time;
-		if (dt > 0)
-			Projectile_Bounce(dt, FALSE);
-		authoritative = self.sim_origin;
-
-		// Spin runs on render time so it stays smooth between corrections.
-		dt = max(0, cltime - self.angle_time);
-		self.angle_time = cltime;
-		if (dt > 0)
-		{
-			self.sim_angles = self.sim_angles + self.avelocity * min(dt, 0.05);
-			self.angles = self.sim_angles;
-		}
-
-		org = Projectile_Smoothed(authoritative);
+		Projectile_MoveServerGrenade();
 	}
 	else
 	{
-		authoritative = self.s_origin + self.s_velocity * (time - self.s_recv);
-		org = Projectile_Smoothed(authoritative);
-
+		Projectile_MoveServerLinear();
 	}
 
-	setorigin(self, org);
+	setorigin(self, self.draw_origin);
 
 	// Level 2 traces the first few frames of flight; level 1 keeps to the events
 	// worth noticing, so it stays readable while playing.
 	if (autocvar_cl_predict_debug > 1 && self.debug_count < 5)
 	{
-		self.debug_count = self.debug_count + 1;
+		self.debug_count++;
 		print(sprintf("proj: %s #%g at %s age %g\n",
 		              self.is_local ? "local" : "server",
-		              self.entnum, vtos(org), time - self.s_recv));
+		              self.entnum, vtos(self.draw_origin), time - self.s_recv));
 	}
 
-	self.last_draw_origin = org;
+	self.last_draw_origin = self.draw_origin;
 	self.have_draw_origin = TRUE;
 
 	// Our own projectile starts inside our own face; drawing it there only
 	// flickers, so carry the trail along without rendering it.
 	if (self.owner_num == player_localentnum
-		&& vlen(org - getproperty(VF_ORIGIN)) < TOO_CLOSE_RADIUS)
+		&& vlen(self.draw_origin - getproperty(VF_ORIGIN)) < TOO_CLOSE_RADIUS)
 	{
-		self.trail_org = org;
+		self.trail_org = self.draw_origin;
 		return PREDRAW_NEXT;
 	}
 
-	Projectile_EmitTrail(org);
+	Projectile_EmitTrail(self.draw_origin);
 
 	if (self.modelflags & MF_ROCKET)
-		dynamiclight_add(org, 200 * cvar("r_rocketlight"), '0.4 0.2 0.05');
+		dynamiclight_add(self.draw_origin, 200 * cvar("r_rocketlight"), '0.4 0.2 0.05');
 
 	return PREDRAW_AUTOADD;
 }
@@ -367,8 +415,8 @@ float Projectile_SpawnLocal(float widx, float a)
 	speed = Weapon_ProjectileSpeedScale(widx, ws_predicted.predflags);
 
 	org = Pred_OriginForFrame(replay_frame);
-	org = org + v_right * off_x + v_forward * off_y;
-	org_z = org_z + off_z;
+	org += v_right * off_x + v_forward * off_y;
+	org_z += off_z;
 
 	vel = weapons[widx].anim[a].proj_vel;
 	vel = (v_right * vel_x + v_forward * vel_y + v_up * vel_z) * speed;
@@ -408,7 +456,7 @@ float Projectile_SpawnLocal(float widx, float a)
 		proj.proj_kind = PROJ_LINEAR;
 		proj.start = org;
 		proj.starttime = time - NEWMIS_STEP;
-		org = org + vel * NEWMIS_STEP;
+		org += vel * NEWMIS_STEP;
 
 		if (proj.modelflags & MF_ROCKET)
 			proj.trail_fx = Projectile_TrailEffect(FALSE);
@@ -438,14 +486,14 @@ float Projectile_SpawnLocal(float widx, float a)
  */
 static void Projectile_TakeOver(entity server_proj, vector server_origin)
 {
-	entity e, best = world;
+	entity best = world;
 	vector diff, dir, local_org, smooth_from;
 	float par, perp, dist, best_dist = 0, speed, ease;
 
 	if (server_proj.owner_num != player_localentnum)
 		return;
 
-	for (e = world; (e = findfloat(e, is_local, TRUE)); )
+	for (entity e = world; (e = findfloat(e, is_local, TRUE)); )
 	{
 		if (e.owner_num != server_proj.owner_num)
 			continue;
@@ -535,12 +583,8 @@ void Projectile_Parse(float isnew)
 
 	if (sendflags & PROJECTILE_ORIGIN)
 	{
-		self.s_origin_x = ReadCoord();
-		self.s_origin_y = ReadCoord();
-		self.s_origin_z = ReadCoord();
-		self.s_velocity_x = ReadCoord();
-		self.s_velocity_y = ReadCoord();
-		self.s_velocity_z = ReadCoord();
+		self.s_origin = Projectile_ReadVector();
+		self.s_velocity = Projectile_ReadVector();
 		ReadFloat();	// the server's own clock; see .s_recv
 		self.s_recv = time;
 		had_origin = TRUE;
@@ -568,20 +612,14 @@ void Projectile_Parse(float isnew)
 	}
 
 	if (sendflags & PROJECTILE_ANGLES)
-	{
-		self.angles_x = ReadAngle();
-		self.angles_y = ReadAngle();
-		self.angles_z = ReadAngle();
-	}
+		self.angles = Projectile_ReadAngles();
 
 	if (sendflags & PROJECTILE_OWNER)
 		self.owner_num = ReadShort();
 
 	if (sendflags & PROJECTILE_SPAWN_ORIGIN)
 	{
-		spawn_org_x = ReadCoord();
-		spawn_org_y = ReadCoord();
-		spawn_org_z = ReadCoord();
+		spawn_org = Projectile_ReadVector();
 
 		// Start the trail at the muzzle, but only when that is plausibly where
 		// this projectile came from.

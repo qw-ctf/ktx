@@ -84,7 +84,7 @@ void Beam_Draw(void)
 	 * the bolt on the lens, which is what fills the screen with white.
 	 */
 	muzzle = pmove_org;
-	muzzle_z = muzzle_z + bound(-7, cvar("v_viewheight"), 4);
+	muzzle_z += bound(-7, cvar("v_viewheight"), 4);
 
 	// A discharge underwater is not a beam; the server handles that case and we
 	// would only draw a bolt that never existed.

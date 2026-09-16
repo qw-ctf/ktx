@@ -116,7 +116,7 @@ void WeaponState_Parse(float isnew)
 	if (ws_server.weapon_index == 1 && ws_server.frame >= 5
 		&& ws_server.client_thinkindex >= 2 && ws_server.client_thinkindex <= 4)
 	{
-		ws_server.client_thinkindex = ws_server.client_thinkindex + 4;
+		ws_server.client_thinkindex += 4;
 	}
 
 	/*
@@ -162,20 +162,21 @@ static float Weapon_HasAmmo(float impulse)
 	return TRUE;
 }
 
-#define SWITCH_APPLIED		0
-#define SWITCH_BLOCKED		1	// mid-animation; the impulse stays queued
-#define SWITCH_UNRESOLVED	2	// cannot select it; drop the impulse
+enum
+{
+	SWITCH_APPLIED,
+	SWITCH_BLOCKED,		// mid-animation; the impulse stays queued
+	SWITCH_UNRESOLVED	// cannot select it; drop the impulse
+};
 
 static float Weapon_Switch(float impulse)
 {
-	float i;
-
 	// The server refuses to switch until the current animation finishes, and
 	// remembers the impulse until then.
 	if (ws_predicted.client_time < ws_predicted.attack_finished)
 		return SWITCH_BLOCKED;
 
-	for (i = 1; i < MAX_WEAPONS; i++)
+	for (float i = 1; i < weapons.length; i++)
 	{
 		if (!Weapon_Valid(i) || weapons[i].impulse != impulse)
 			continue;
@@ -206,7 +207,8 @@ static float Weapon_Switch(float impulse)
 // played them for: replay walks the same frames again every time we draw.
 static void Weapon_PlayEffects(float idx, float a, float buttons)
 {
-	float flags = weapons[idx].anim[a].flags;
+	anim_t *anim = &weapons[idx].anim[a];
+	float flags = anim->flags;
 	float chan, throttled;
 
 	if (autocvar_cl_nopred_weapon)
@@ -222,7 +224,7 @@ static void Weapon_PlayEffects(float idx, float a, float buttons)
 
 		if (!throttled)
 		{
-			Sound_PlayPredicted(weapons[idx].anim[a].sound, chan);
+			Sound_PlayPredicted(anim->sound, chan);
 
 			if (flags & ANIM_SOUND2)
 			{
@@ -234,13 +236,13 @@ static void Weapon_PlayEffects(float idx, float a, float buttons)
 				{
 					if (ws_predicted.client_time >= lg_twidth)
 					{
-						Sound_PlayPredicted(weapons[idx].anim[a].sound2, CHAN_WEAPON);
+						Sound_PlayPredicted(anim->sound2, CHAN_WEAPON);
 						lg_twidth = ws_predicted.client_time + LG_SOUND_WINDOW;
 					}
 				}
 				else
 				{
-					Sound_PlayPredicted(weapons[idx].anim[a].sound2, CHAN_WEAPON);
+					Sound_PlayPredicted(anim->sound2, CHAN_WEAPON);
 				}
 			}
 
@@ -267,7 +269,6 @@ static void Weapon_PlayEffects(float idx, float a, float buttons)
 void Weapon_EnterState(float a, float buttons)
 {
 	float idx = ws_predicted.weapon_index;
-	float flags, nextstate;
 
 	if (a < 0 || a >= weapons[idx].anim_count)
 	{
@@ -276,15 +277,16 @@ void Weapon_EnterState(float a, float buttons)
 		return;
 	}
 
-	flags = weapons[idx].anim[a].flags;
+	anim_t *anim = &weapons[idx].anim[a];
+	float flags = anim->flags;
 
 	// The idle state ends the animation.
 	if (a == 0 && (flags & ANIM_DEFAULT))
 	{
 		ws_predicted.client_thinkindex = 0;
 		ws_predicted.client_nextthink = 0;
-		if (weapons[idx].anim[a].frame >= 0)
-			ws_predicted.frame = weapons[idx].anim[a].frame;
+		if (anim->frame >= 0)
+			ws_predicted.frame = anim->frame;
 		return;
 	}
 
@@ -295,7 +297,7 @@ void Weapon_EnterState(float a, float buttons)
 	if ((flags & ANIM_ATTACK) && (flags & ANIM_BRANCH)
 		&& (!(buttons & 1) || ws_predicted.impulse))
 	{
-		float alt = weapons[idx].anim[a].alt;
+		float alt = anim->alt;
 
 		if (alt >= 0 && alt < weapons[idx].anim_count
 			&& (weapons[idx].anim[alt].flags & ANIM_DEFAULT))
@@ -313,15 +315,15 @@ void Weapon_EnterState(float a, float buttons)
 
 	Weapon_PlayEffects(idx, a, buttons);
 
-	if (weapons[idx].anim[a].frame >= 0)
+	if (anim->frame >= 0)
 	{
-		ws_predicted.frame = weapons[idx].anim[a].frame;
+		ws_predicted.frame = anim->frame;
 	}
 	else
 	{
 		// A negative frame means cycle 1..|frame|.
-		ws_predicted.frame = ws_predicted.frame + 1;
-		if (ws_predicted.frame > -weapons[idx].anim[a].frame)
+		ws_predicted.frame++;
+		if (ws_predicted.frame > -anim->frame)
 			ws_predicted.frame = 1;
 	}
 
@@ -334,11 +336,10 @@ void Weapon_EnterState(float a, float buttons)
 				+ Weapon_AttackTime(idx, ws_predicted.predflags);
 	}
 
-	nextstate = weapons[idx].anim[a].next;
-	ws_predicted.client_thinkindex = nextstate;
+	ws_predicted.client_thinkindex = anim->next;
 
-	if (weapons[idx].anim[a].len)
-		ws_predicted.client_nextthink = ws_predicted.client_time + weapons[idx].anim[a].len;
+	if (anim->len)
+		ws_predicted.client_nextthink = ws_predicted.client_time + anim->len;
 	else
 		ws_predicted.client_nextthink = 0;
 }
@@ -393,26 +394,27 @@ static float Weapon_AxeEntry(void)
 static void Weapon_Attack(float buttons)
 {
 	float idx = ws_predicted.weapon_index;
-	float i;
 
 	if (ws_predicted.client_time < ws_predicted.attack_finished)
 		return;
 	if (!(buttons & 1))
 		return;
 
-	for (i = 0; i < weapons[idx].anim_count; i++)
+	for (float i = 0; i < weapons[idx].anim_count; i++)
 	{
-		if (!(weapons[idx].anim[i].flags & ANIM_DEFAULT))
+		anim_t *anim = &weapons[idx].anim[i];
+
+		if (!(anim->flags & ANIM_DEFAULT))
 			continue;
 
 		// The idle state is not an attack entry for this weapon.
-		if (!(weapons[idx].anim[i].flags & ANIM_ATTACK))
+		if (!(anim->flags & ANIM_ATTACK))
 			return;
 
 		if (idx == 1)
 			Weapon_EnterState(Weapon_AxeEntry(), buttons);
 		else
-			Weapon_EnterState(weapons[idx].anim[i].next, buttons);
+			Weapon_EnterState(anim->next, buttons);
 
 		ws_predicted.attack_finished = ws_predicted.client_time
 			+ Weapon_AttackTime(idx, ws_predicted.predflags);
@@ -504,7 +506,7 @@ static void Weapon_Simulate(void)
 
 void WeaponState_Replay(void)
 {
-	float f, threshold, last_shown;
+	float threshold, last_shown;
 
 	if (!ws_have_state)
 		return;
@@ -542,7 +544,7 @@ void WeaponState_Replay(void)
 	last_shown = ws_state_frame;
 
 	// The frame being assembled now has not been sent, so it is not replayed.
-	for (f = ws_state_frame + 1; f < clientcommandframe; f++)
+	for (float f = ws_state_frame + 1; f < clientcommandframe; f++)
 	{
 		if (!getinputstate(f))
 			break;
@@ -638,12 +640,9 @@ float WeaponState_Present(void)
 	 * A view model entity is positioned in view space. The engine applies its
 	 * own bob, but the user's gun offsets are ours to reproduce.
 	 */
-	viewweapon.origin_x = cvar("cl_gunz");
-	viewweapon.origin_y = -cvar("cl_gunx");
-	viewweapon.origin_z = -cvar("cl_guny");
-	viewweapon.angles_x = cvar("cl_gunanglex");
-	viewweapon.angles_y = cvar("cl_gunangley");
-	viewweapon.angles_z = cvar("cl_gunanglez");
+	viewweapon.origin = [cvar("cl_gunz"), -cvar("cl_gunx"), -cvar("cl_guny")];
+	viewweapon.angles = [cvar("cl_gunanglex"), cvar("cl_gunangley"),
+	                     cvar("cl_gunanglez")];
 
 	addentity(viewweapon);
 	return TRUE;

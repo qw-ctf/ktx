@@ -15,8 +15,14 @@
  *   alt          state entered when a BRANCH state sees +attack released
  *
  * Values that depend on server configuration are NOT baked in here; they are
- * applied at use from the prediction flags the server sends (see Weapon_Table
- * accessors below).
+ * applied at use from the prediction flags the server sends (see the accessors
+ * below).
+ *
+ * Every member of every row is written out, even the empty ones. Designated
+ * initialisers look like the obvious improvement here and are not: fteqcc
+ * leaves the members you omit holding whatever was in that memory, silently and
+ * without a warning, so a row that skipped proj_off would fire nails at a
+ * garbage offset. Spell it out.
  */
 
 typedef struct
@@ -43,13 +49,11 @@ typedef struct
 	anim_t	anim[9];
 } weapon_t;
 
-#define MAX_WEAPONS 9
-
 /*
  * Indexed by the server's weapon_index. Slot 0 is the hook or "no weapon",
  * which is never predicted, so it is left empty.
  */
-weapon_t weapons[MAX_WEAPONS] =
+weapon_t weapons[9] =
 {
 	// 0: unused
 	{ "", 0, 0, 0, 0, { } },
@@ -172,13 +176,13 @@ weapon_t weapons[MAX_WEAPONS] =
 	}
 };
 
-// Cached model indices, filled on first use. getmodelindex() is cheap but this
-// runs per frame per weapon.
-float weapon_modelindex[MAX_WEAPONS];
+// Cached model indices, filled on first use: the view model is looked up on
+// every rendered frame.
+float weapon_modelindex[weapons.length];
 
 float Weapon_Valid(float idx)
 {
-	if (idx < 1 || idx >= MAX_WEAPONS)
+	if (idx < 1 || idx >= weapons.length)
 		return FALSE;
 
 	return weapons[idx].anim_count > 0;
@@ -229,23 +233,23 @@ vector Weapon_ProjectileOffset(float idx, float predflags, vector off)
 
 void Weapon_PrecacheAll(void)
 {
-	float w, a;
-
-	for (w = 1; w < MAX_WEAPONS; w++)
+	for (float w = 1; w < weapons.length; w++)
 	{
 		if (!Weapon_Valid(w))
 			continue;
 
 		precache_model(weapons[w].model);
 
-		for (a = 0; a < weapons[w].anim_count; a++)
+		for (float a = 0; a < weapons[w].anim_count; a++)
 		{
-			if (weapons[w].anim[a].sound != "")
-				precache_sound(weapons[w].anim[a].sound);
-			if (weapons[w].anim[a].sound2 != "")
-				precache_sound(weapons[w].anim[a].sound2);
-			if (weapons[w].anim[a].proj_model != "")
-				precache_model(weapons[w].anim[a].proj_model);
+			anim_t *anim = &weapons[w].anim[a];
+
+			if (anim->sound != "")
+				precache_sound(anim->sound);
+			if (anim->sound2 != "")
+				precache_sound(anim->sound2);
+			if (anim->proj_model != "")
+				precache_model(anim->proj_model);
 		}
 	}
 }

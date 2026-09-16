@@ -55,7 +55,7 @@ float Pred_ProjectilesEnabled(void)
 // prediction for the present, so we keep a short history of it.
 // ==========================================================================
 
-void Pred_RecordOrigin(void)
+static void Pred_RecordOrigin(void)
 {
 	float slot = clientcommandframe & PRED_MASK;
 
