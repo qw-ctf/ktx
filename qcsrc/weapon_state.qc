@@ -7,10 +7,7 @@ typedef struct
 {
 	float	impulse;
 	float	weapon_index;
-	float	ammo_shells;
-	float	ammo_nails;
-	float	ammo_rockets;
-	float	ammo_cells;
+	float	ammo[AMMO_COUNT];
 	float	attack_finished;
 	float	client_nextthink;
 	float	client_thinkindex;
@@ -66,13 +63,13 @@ void WeaponState_Parse(float isnew)
 	}
 
 	if (sendflags & WEAPONINFO_AMMO_SHELLS)
-		ws_server.ammo_shells = ReadByte();
+		ws_server.ammo[AMMO_SHELLS] = ReadByte();
 	if (sendflags & WEAPONINFO_AMMO_NAILS)
-		ws_server.ammo_nails = ReadByte();
+		ws_server.ammo[AMMO_NAILS] = ReadByte();
 	if (sendflags & WEAPONINFO_AMMO_ROCKETS)
-		ws_server.ammo_rockets = ReadByte();
+		ws_server.ammo[AMMO_ROCKETS] = ReadByte();
 	if (sendflags & WEAPONINFO_AMMO_CELLS)
-		ws_server.ammo_cells = ReadByte();
+		ws_server.ammo[AMMO_CELLS] = ReadByte();
 
 	if (sendflags & WEAPONINFO_ATTACK)
 	{
@@ -113,7 +110,7 @@ void WeaponState_Parse(float isnew)
 	 * both as the same think index, so recover the second chain from the frame
 	 * it is showing.
 	 */
-	if (ws_server.weapon_index == 1 && ws_server.frame >= 5
+	if (Weapon_ItemFlag(ws_server.weapon_index) == IT_AXE && ws_server.frame >= 5
 		&& ws_server.client_thinkindex >= 2 && ws_server.client_thinkindex <= 4)
 	{
 		ws_server.client_thinkindex += 4;
@@ -140,26 +137,21 @@ void WeaponState_Parse(float isnew)
 // being shown.
 // ==========================================================================
 
-static float Weapon_HasItem(float idx)
+// The item bits the player is carrying. STAT_ITEMS packs items2 above these,
+// so the low 23 are the ones that name a weapon.
+static float Player_Items(void)
 {
-	return (getstatbits(STAT_ITEMS, 0, 23) & weapons[idx].itemflag) != 0;
+	return getstatbits(STAT_ITEMS, 0, 23);
 }
 
-// Does the player have enough ammo for the weapon this impulse selects?
-static float Weapon_HasAmmo(float impulse)
+// Whether the player could switch to this weapon: they have to be carrying it
+// and hold enough of what it fires.
+static float WeaponState_CanSelect(float idx)
 {
-	switch (impulse)
-	{
-	case 2:  return ws_predicted.ammo_shells >= 1;
-	case 3:  return ws_predicted.ammo_shells >= 2;
-	case 4:  return ws_predicted.ammo_nails >= 1;
-	case 5:  return ws_predicted.ammo_nails >= 2;
-	case 6:  return ws_predicted.ammo_rockets >= 1;
-	case 7:  return ws_predicted.ammo_rockets >= 1;
-	case 8:  return ws_predicted.ammo_cells >= 1;
-	}
+	if (!(Player_Items() & weapons[idx].itemflag))
+		return FALSE;
 
-	return TRUE;
+	return ws_predicted.ammo[weapons[idx].ammo] >= weapons[idx].ammo_min;
 }
 
 enum
@@ -171,36 +163,35 @@ enum
 
 static float Weapon_Switch(float impulse)
 {
+	float idx;
+
 	// The server refuses to switch until the current animation finishes, and
 	// remembers the impulse until then.
 	if (ws_predicted.client_time < ws_predicted.attack_finished)
 		return SWITCH_BLOCKED;
 
-	for (float i = 1; i < weapons.length; i++)
-	{
-		if (!Weapon_Valid(i) || weapons[i].impulse != impulse)
-			continue;
+	idx = Weapon_ForImpulse(impulse);
 
-		if (!Weapon_HasItem(i) || !Weapon_HasAmmo(impulse))
-			return SWITCH_UNRESOLVED;
+	if (!idx)
+		return SWITCH_UNRESOLVED;
 
-		if (ws_predicted.weapon_index == i)
-			return SWITCH_APPLIED;
+	if (!WeaponState_CanSelect(idx))
+		return SWITCH_UNRESOLVED;
 
-		if (weapons[ws_predicted.weapon_index].itemflag == IT_LIGHTNING)
-		{
-			lg_twidth = 0;
-			Beam_Clear();
-		}
-
-		ws_predicted.weapon_index = i;
-		ws_predicted.client_thinkindex = 0;
-		ws_predicted.client_nextthink = 0;
-		ws_predicted.frame = max(0, weapons[i].anim[0].frame);
+	if (ws_predicted.weapon_index == idx)
 		return SWITCH_APPLIED;
+
+	if (Weapon_ItemFlag(ws_predicted.weapon_index) == IT_LIGHTNING)
+	{
+		lg_twidth = 0;
+		Beam_Clear();
 	}
 
-	return SWITCH_UNRESOLVED;
+	ws_predicted.weapon_index = idx;
+	ws_predicted.client_thinkindex = 0;
+	ws_predicted.client_nextthink = 0;
+	ws_predicted.frame = max(0, weapons[idx].anim[0].frame);
+	return SWITCH_APPLIED;
 }
 
 // Effects fire on entering a state, but only on a frame we have not already
@@ -295,18 +286,19 @@ void Weapon_EnterState(float a, float buttons)
 	 * go, or queueing a weapon switch, drops out to the idle state.
 	 */
 	if ((flags & ANIM_ATTACK) && (flags & ANIM_BRANCH)
-		&& (!(buttons & 1) || ws_predicted.impulse))
+		&& (!(buttons & BUTTON_ATTACK) || ws_predicted.impulse))
 	{
-		float alt = anim->alt;
-
-		if (alt >= 0 && alt < weapons[idx].anim_count
-			&& (weapons[idx].anim[alt].flags & ANIM_DEFAULT))
+		/*
+		 * Every state in the table leaves .alt at 0, so this asks whether this
+		 * weapon has an idle state to fall back to. Lightning's state 0 is an
+		 * attack entry rather than an idle one, so it simply stops.
+		 */
+		if (weapons[idx].anim[anim->alt].flags & ANIM_DEFAULT)
 		{
-			Weapon_EnterState(alt, buttons);
+			Weapon_EnterState(anim->alt, buttons);
 		}
 		else
 		{
-			// Lightning has no idle state; it simply stops.
 			ws_predicted.client_thinkindex = 0;
 			ws_predicted.client_nextthink = 0;
 		}
@@ -394,36 +386,33 @@ static float Weapon_AxeEntry(void)
 static void Weapon_Attack(float buttons)
 {
 	float idx = ws_predicted.weapon_index;
+	anim_t *entry = &weapons[idx].anim[0];
 
 	if (ws_predicted.client_time < ws_predicted.attack_finished)
 		return;
-	if (!(buttons & 1))
+	if (!(buttons & BUTTON_ATTACK))
 		return;
 
-	for (float i = 0; i < weapons[idx].anim_count; i++)
+	// State 0 is where every weapon is entered: the idle state it returns to
+	// between shots, and the one it fires from. Not being an attack entry means
+	// this weapon does not fire at all.
+	if (!(entry->flags & ANIM_ATTACK))
+		return;
+
+	// Lightning has no idle state, so firing starts at state 0 itself.
+	if (!(entry->flags & ANIM_DEFAULT))
 	{
-		anim_t *anim = &weapons[idx].anim[i];
-
-		if (!(anim->flags & ANIM_DEFAULT))
-			continue;
-
-		// The idle state is not an attack entry for this weapon.
-		if (!(anim->flags & ANIM_ATTACK))
-			return;
-
-		if (idx == 1)
-			Weapon_EnterState(Weapon_AxeEntry(), buttons);
-		else
-			Weapon_EnterState(anim->next, buttons);
-
-		ws_predicted.attack_finished = ws_predicted.client_time
-			+ Weapon_AttackTime(idx, ws_predicted.predflags);
+		Weapon_EnterState(0, buttons);
 		return;
 	}
 
-	// Lightning has no idle state, so firing starts at state 0.
-	if (weapons[idx].anim_count > 0 && (weapons[idx].anim[0].flags & ANIM_ATTACK))
-		Weapon_EnterState(0, buttons);
+	if (weapons[idx].itemflag == IT_AXE)
+		Weapon_EnterState(Weapon_AxeEntry(), buttons);
+	else
+		Weapon_EnterState(entry->next, buttons);
+
+	ws_predicted.attack_finished = ws_predicted.client_time
+		+ Weapon_AttackTime(idx, ws_predicted.predflags);
 }
 
 // ==========================================================================
@@ -593,7 +582,7 @@ static float WeaponState_Visible(void)
 		return FALSE;
 	if (!cvar("r_drawviewmodel"))
 		return FALSE;
-	if ((getstatbits(STAT_ITEMS, 0, 23) & IT_INVISIBILITY) && !cvar("r_drawviewmodelinvis"))
+	if ((Player_Items() & IT_INVISIBILITY) && !cvar("r_drawviewmodelinvis"))
 		return FALSE;
 
 	return TRUE;

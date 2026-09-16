@@ -25,6 +25,21 @@
  * garbage offset. Spell it out.
  */
 
+/*
+ * Which ammo pool a weapon draws on. AMMO_NONE indexes a slot the server never
+ * writes, so the axe's requirement of none is satisfied by the same test as
+ * everything else.
+ */
+enum
+{
+	AMMO_NONE,
+	AMMO_SHELLS,
+	AMMO_NAILS,
+	AMMO_ROCKETS,
+	AMMO_CELLS,
+	AMMO_COUNT
+};
+
 typedef struct
 {
 	float	frame;
@@ -45,6 +60,8 @@ typedef struct
 	float	attack_time;
 	float	impulse;
 	float	itemflag;
+	float	ammo;		// the pool a shot draws from
+	float	ammo_min;	// ... and how much it needs to be selectable
 	float	anim_count;
 	anim_t	anim[9];
 } weapon_t;
@@ -56,12 +73,12 @@ typedef struct
 weapon_t weapons[9] =
 {
 	// 0: unused
-	{ "", 0, 0, 0, 0, { } },
+	{ "", 0, 0, 0, AMMO_NONE, 0, 0, { } },
 
 	// 1: axe. Two interchangeable swing chains, frames 1-4 and 5-8; which one
 	// runs is picked by a deterministic hash of the fire time (Weapon_AxeEntry).
 	{
-		"progs/v_axe.mdl", 0.5, 1, IT_AXE, 9,
+		"progs/v_axe.mdl", 0.5, 1, IT_AXE, AMMO_NONE, 0, 9,
 		{
 			{ 0, ANIM_DEFAULT | ANIM_ATTACK, "", "", "", '0 0 0', '0 0 0', 1, 0, 0 },
 			{ 1, ANIM_SOUND, "weapons/ax1.wav", "", "", '0 0 0', '0 0 0', 2, 0, 0.1 },
@@ -77,7 +94,7 @@ weapon_t weapons[9] =
 
 	// 2: shotgun
 	{
-		"progs/v_shot.mdl", 0.5, 2, IT_SHOTGUN, 7,
+		"progs/v_shot.mdl", 0.5, 2, IT_SHOTGUN, AMMO_SHELLS, 1, 7,
 		{
 			{ 0, ANIM_DEFAULT | ANIM_ATTACK, "", "", "", '0 0 0', '0 0 0', 1, 0, 0 },
 			{ 1, ANIM_MUZZLEFLASH | ANIM_SOUND, "weapons/guncock.wav", "", "", '0 0 0', '0 0 0', 2, 0, 0.1 },
@@ -91,7 +108,7 @@ weapon_t weapons[9] =
 
 	// 3: super shotgun. Refire is 0.8 under yawn mode, see Weapon_AttackTime.
 	{
-		"progs/v_shot2.mdl", 0.7, 3, IT_SUPER_SHOTGUN, 7,
+		"progs/v_shot2.mdl", 0.7, 3, IT_SUPER_SHOTGUN, AMMO_SHELLS, 2, 7,
 		{
 			{ 0, ANIM_DEFAULT | ANIM_ATTACK, "", "", "", '0 0 0', '0 0 0', 1, 0, 0 },
 			{ 1, ANIM_MUZZLEFLASH | ANIM_SOUND, "weapons/shotgn2.wav", "", "", '0 0 0', '0 0 0', 2, 0, 0.1 },
@@ -106,7 +123,7 @@ weapon_t weapons[9] =
 	// 4: nailgun. States 1 and 2 alternate, offsetting the muzzle left and
 	// right. Under yawn mode the offset is dropped and nails fly faster.
 	{
-		"progs/v_nail.mdl", 0.2, 4, IT_NAILGUN, 3,
+		"progs/v_nail.mdl", 0.2, 4, IT_NAILGUN, AMMO_NAILS, 1, 3,
 		{
 			{ 0, ANIM_DEFAULT | ANIM_ATTACK, "", "", "", '0 0 0', '0 0 0', 1, 0, 0 },
 			{ -8, ANIM_MUZZLEFLASH | ANIM_SOUND | ANIM_PROJECTILE | ANIM_ATTACK | ANIM_BRANCH,
@@ -118,7 +135,7 @@ weapon_t weapons[9] =
 
 	// 5: super nailgun
 	{
-		"progs/v_nail2.mdl", 0.2, 5, IT_SUPER_NAILGUN, 3,
+		"progs/v_nail2.mdl", 0.2, 5, IT_SUPER_NAILGUN, AMMO_NAILS, 2, 3,
 		{
 			{ 0, ANIM_DEFAULT | ANIM_ATTACK, "", "", "", '0 0 0', '0 0 0', 1, 0, 0 },
 			{ -8, ANIM_MUZZLEFLASH | ANIM_SOUND | ANIM_PROJECTILE | ANIM_ATTACK | ANIM_BRANCH,
@@ -130,7 +147,7 @@ weapon_t weapons[9] =
 
 	// 6: grenade launcher. Grenades leave from the player origin with no offset.
 	{
-		"progs/v_rock.mdl", 0.6, 6, IT_GRENADE_LAUNCHER, 7,
+		"progs/v_rock.mdl", 0.6, 6, IT_GRENADE_LAUNCHER, AMMO_ROCKETS, 1, 7,
 		{
 			{ 0, ANIM_DEFAULT | ANIM_ATTACK, "", "", "", '0 0 0', '0 0 0', 1, 0, 0 },
 			{ 1, ANIM_MUZZLEFLASH | ANIM_SOUND | ANIM_PROJECTILE,
@@ -146,7 +163,7 @@ weapon_t weapons[9] =
 	// 7: rocket launcher. Rockets fly at 2000 while quad-boosted in midair
 	// mode, see Weapon_ProjectileSpeedScale.
 	{
-		"progs/v_rock2.mdl", 0.8, 7, IT_ROCKET_LAUNCHER, 7,
+		"progs/v_rock2.mdl", 0.8, 7, IT_ROCKET_LAUNCHER, AMMO_ROCKETS, 1, 7,
 		{
 			{ 0, ANIM_DEFAULT | ANIM_ATTACK, "", "", "", '0 0 0', '0 0 0', 1, 0, 0 },
 			{ 1, ANIM_MUZZLEFLASH | ANIM_SOUND | ANIM_PROJECTILE,
@@ -164,7 +181,7 @@ weapon_t weapons[9] =
 	// refire is fixed at LG_ATTACK_TIME rather than the table's attack_time,
 	// matching the server's own special case.
 	{
-		"progs/v_light.mdl", 0.1, 8, IT_LIGHTNING, 3,
+		"progs/v_light.mdl", 0.1, 8, IT_LIGHTNING, AMMO_CELLS, 1, 3,
 		{
 			{ 0, ANIM_ATTACK | ANIM_SOUND | ANIM_SOUND2 | ANIM_SOUNDAUTO | ANIM_LGBEAM,
 			  "weapons/lstart.wav", "weapons/lhit.wav", "", '0 0 0', '0 0 0', 1, 0, 0.1 },
@@ -199,11 +216,38 @@ float Weapon_ModelIndex(float idx)
 	return weapon_modelindex[idx];
 }
 
+/*
+ * The item bit a weapon index stands for, or 0 when it names no weapon.
+ *
+ * Worth going through a function: && does not short-circuit in this dialect, so
+ * a range check written beside the array read would not stop it happening. The
+ * bounds test has to be a statement of its own, and here it is one.
+ */
+float Weapon_ItemFlag(float idx)
+{
+	if (!Weapon_Valid(idx))
+		return 0;
+
+	return weapons[idx].itemflag;
+}
+
+// The weapon an impulse selects, or 0 when the impulse names none.
+float Weapon_ForImpulse(float impulse)
+{
+	for (float i = 1; i < weapons.length; i++)
+	{
+		if (Weapon_Valid(i) && weapons[i].impulse == impulse)
+			return i;
+	}
+
+	return 0;
+}
+
 // Refire delay. Yawn mode slows the super shotgun; the lightning gun ignores
 // the table entirely.
 float Weapon_AttackTime(float idx, float predflags)
 {
-	if (idx == 3 && (predflags & PRDFL_YAWNMODE))
+	if (weapons[idx].itemflag == IT_SUPER_SHOTGUN && (predflags & PRDFL_YAWNMODE))
 		return 0.8;
 
 	return weapons[idx].attack_time;
@@ -213,10 +257,12 @@ float Weapon_AttackTime(float idx, float predflags)
 // flies at 2000 instead of 1000.
 float Weapon_ProjectileSpeedScale(float idx, float predflags)
 {
-	if ((idx == 4 || idx == 5) && (predflags & PRDFL_YAWNMODE))
+	float item = weapons[idx].itemflag;
+
+	if ((item & (IT_NAILGUN | IT_SUPER_NAILGUN)) && (predflags & PRDFL_YAWNMODE))
 		return 1.8;
 
-	if (idx == 7 && (predflags & PRDFL_MIDAIR))
+	if (item == IT_ROCKET_LAUNCHER && (predflags & PRDFL_MIDAIR))
 		return 2;
 
 	return 1;
@@ -225,8 +271,11 @@ float Weapon_ProjectileSpeedScale(float idx, float predflags)
 // Yawn mode fires nails straight down the middle instead of alternating.
 vector Weapon_ProjectileOffset(float idx, float predflags, vector off)
 {
-	if ((idx == 4 || idx == 5) && (predflags & PRDFL_YAWNMODE))
+	if ((weapons[idx].itemflag & (IT_NAILGUN | IT_SUPER_NAILGUN))
+		&& (predflags & PRDFL_YAWNMODE))
+	{
 		off_x = 0;
+	}
 
 	return off;
 }

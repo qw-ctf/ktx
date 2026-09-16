@@ -81,6 +81,9 @@ enumflags
 // temp entity number we peek at
 const float TE_LIGHTNING2	= 6;
 
+// the one usercmd button the weapon state machine cares about
+const float BUTTON_ATTACK	= 1;
+
 // ==========================================================================
 // Weapon definition flags
 //
