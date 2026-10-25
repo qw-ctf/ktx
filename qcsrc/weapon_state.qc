@@ -574,8 +574,8 @@ void WeaponState_Replay(void)
 			break;
 
 		replay_frame = f;
-		frame_may_sound = (f <= threshold) && (f > last_sound_frame);
-		frame_may_projectile = (f <= threshold) && (f > last_projectile_frame);
+		frame_may_sound = ((f <= threshold) && (f > last_sound_frame));
+		frame_may_projectile = ((f <= threshold) && (f > last_projectile_frame));
 
 		WeaponState_Step();
 
