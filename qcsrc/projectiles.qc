@@ -44,6 +44,7 @@ enum
 .float	owner_num;		// entity number of the player who fired
 .float	is_local;		// our own prediction, not an entity the server sent
 
+.float	proj_announced;	// first update with model and owner handled
 .float	endtime;		// server time a local projectile gives up at
 
 .vector	sim_origin;		// grenade simulation, carried between frames
@@ -400,6 +401,17 @@ static float Projectile_Predraw(void)
  * Returns true when the shot has been dealt with, so the replay does not keep
  * retrying it on later frames.
  */
+/*
+ * Round trip as this client sees it: the inputs the server has not yet
+ * acknowledged, times the length of one. The server's ping field is capped at
+ * the antilag rewind limit, so on a slow link it understates the wait for the
+ * server's copy of our shot.
+ */
+static float Projectile_LocalRtt(float ping)
+{
+	return max(ping, (clientcommandframe - servercommandframe) * input_timelength);
+}
+
 float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
                             float predflags)
 {
@@ -441,28 +453,30 @@ float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
 	proj.owner_num = player_localentnum;
 	proj.velocity = vel;
 	proj.angles = vectoangles(vel);
-	proj.endtime = time + max(ping + TRAIL_PERIOD, LOCAL_MIN_LIFETIME);
-
-	// The server advances a newly spawned missile by one frame before anyone
-	// sees it, so it left the muzzle that long ago.
-	proj.s_recv = time - NEWMIS_STEP;
+	/*
+	 * Wait out the server's copy: one RTT, plus one more when the packet that
+	 * introduces it is lost and resent, plus the arrival jitter margin.
+	 */
+	proj.endtime = time + max(Projectile_LocalRtt(ping) * (1 + LOCAL_RESEND_RTTS)
+	                          + LOCAL_LIFETIME_MARGIN, LOCAL_MIN_LIFETIME);
 
 	Projectile_Classify(proj);
 
 	if (proj.proj_kind == PROJ_GRENADE)
 	{
+		// Grenades are corrected every server frame and get no newmis lead:
+		// starting them a step ahead put them visibly ahead of the server's.
+		proj.s_recv = time;
 		proj.sim_origin = org;
 		proj.sim_angles = proj.angles;
 		proj.sim_time = time;
 		proj.angle_time = cltime;
-
-		// Match that step so the arcs line up.
-		Projectile_Bounce(proj, NEWMIS_STEP, TRUE);
-		org = proj.sim_origin;
 	}
 	else
 	{
-		// Extrapolated from the muzzle rather than simulated.
+		// The server advances a newly spawned rocket or nail by one frame
+		// before anyone sees it, so it left the muzzle that long ago.
+		proj.s_recv = time - NEWMIS_STEP;
 		proj.s_origin = org;
 		proj.s_velocity = vel;
 		org += vel * NEWMIS_STEP;
@@ -638,9 +652,18 @@ void Projectile_Parse(float isnew)
 		}
 	}
 
-	// Everything from here is about an entity appearing for the first time.
-	if (!isnew)
+	/*
+	 * Everything from here is about an entity appearing for the first time.
+	 * That is the first update carrying its model and owner, not necessarily
+	 * the first update: when the packet with them is lost, the entity first
+	 * arrives as a bare origin delta, and taking over our local copy then
+	 * would fail (no owner, no model) and leave our shot to expire unclaimed.
+	 */
+	if (self.proj_announced)
 		return;
+	if (!self.modelindex || !self.owner_num)
+		return;
+	self.proj_announced = TRUE;
 
 	if (autocvar_cl_predict_debug)
 	{
