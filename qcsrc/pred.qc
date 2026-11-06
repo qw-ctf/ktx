@@ -80,10 +80,12 @@ static float	origin_hist_frame[PRED_BACKUP];
 
 void Pred_RecordOrigin(void)
 {
-	float slot = clientcommandframe & PRED_MASK;
+	// pmove_org is where the last sent input left us, not the pending one.
+	float frame = clientcommandframe - 1;
+	float slot = frame & PRED_MASK;
 
 	origin_hist[slot] = pmove_org;
-	origin_hist_frame[slot] = clientcommandframe;
+	origin_hist_frame[slot] = frame;
 }
 
 vector Pred_OriginForFrame(float f)
