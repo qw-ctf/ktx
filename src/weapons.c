@@ -75,7 +75,9 @@ qbool SendEntity_Projectile(int sendflags)
 {
 	// Any client running csqc runs the csprogs this server ships, so it speaks
 	// this schema; a native EZCSQC client reports the same through "csqcactive".
-	if (!iKey(other, "csqcactive"))
+	// other is world when mvdsv writes the MVD/QTV recorder stream, which it only
+	// arms for CSQC when the server opts in (sv_mvd_csqc).
+	if (other != world && !iKey(other, "csqcactive"))
 	{
 		return false;
 	}
