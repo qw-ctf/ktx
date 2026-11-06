@@ -146,6 +146,8 @@ const float BOUNCE_MAX_BUMPS	= 5;
 
 const float IMPACT_LOOKAHEAD	= 0.02;	// sweep this far past the present position
 const float LOCAL_MIN_LIFETIME	= 0.05;	// a prediction lasts at least this long
+const float LOCAL_LIFETIME_MARGIN = 0.1;	// cover arrival variation around the measured RTT
+const float LOCAL_RESEND_RTTS	= 1;	// a lost server update is resent about one RTT later
 
 const float ROCKET_LIGHT_RADIUS	= 200;
 const vector ROCKET_LIGHT_COLOUR	= '0.4 0.2 0.05';

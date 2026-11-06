@@ -400,6 +400,17 @@ static float Projectile_Predraw(void)
  * Returns true when the shot has been dealt with, so the replay does not keep
  * retrying it on later frames.
  */
+/*
+ * Round trip as this client sees it: the inputs the server has not yet
+ * acknowledged, times the length of one. The server's ping field is capped at
+ * the antilag rewind limit, so on a slow link it understates the wait for the
+ * server's copy of our shot.
+ */
+static float Projectile_LocalRtt(float ping)
+{
+	return max(ping, (clientcommandframe - servercommandframe) * input_timelength);
+}
+
 float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
                             float predflags)
 {
@@ -441,7 +452,12 @@ float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
 	proj.owner_num = player_localentnum;
 	proj.velocity = vel;
 	proj.angles = vectoangles(vel);
-	proj.endtime = time + max(ping + TRAIL_PERIOD, LOCAL_MIN_LIFETIME);
+	/*
+	 * Wait out the server's copy: one RTT, plus one more when the packet that
+	 * introduces it is lost and resent, plus the arrival jitter margin.
+	 */
+	proj.endtime = time + max(Projectile_LocalRtt(ping) * (1 + LOCAL_RESEND_RTTS)
+	                          + LOCAL_LIFETIME_MARGIN, LOCAL_MIN_LIFETIME);
 
 	Projectile_Classify(proj);
 
