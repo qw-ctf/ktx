@@ -41,6 +41,16 @@ static float	frame_may_sound;
 static float	frame_may_projectile;
 static float	last_sound_frame;
 static float	last_projectile_frame;
+/*
+ * client_time of the last shot we played. The server may run a shot a frame
+ * or two later than we predicted (sv_speedcheck trims msec when packets bunch
+ * up), and replay then finds the same shot on a newer frame. Anything closer
+ * than SHOT_SAME_WINDOW to the last one is that same shot, not a new one: the
+ * fastest refire (NG, LG) is 0.1 s.
+ */
+static float	last_sound_time;
+static float	last_projectile_time;
+const float	SHOT_SAME_WINDOW = 0.05;
 
 void WeaponState_Reset(void)
 {
@@ -51,6 +61,8 @@ void WeaponState_Reset(void)
 	lg_twidth = 0;
 	last_sound_frame = 0;
 	last_projectile_frame = 0;
+	last_sound_time = -1000;
+	last_projectile_time = -1000;
 	vw_lerptime = 0;
 }
 
@@ -307,15 +319,24 @@ static void WeaponState_PlayEffects(float idx, float a)
 
 	if (frame_may_sound && (flags & ANIM_SOUND))
 	{
-		WeaponState_PlaySounds(anim);
+		if (fabs(ws_predicted.client_time - last_sound_time) >= SHOT_SAME_WINDOW)
+			WeaponState_PlaySounds(anim);
+		last_sound_time = ws_predicted.client_time;
 		last_sound_frame = max(last_sound_frame, replay_frame);
 	}
 
 	if (frame_may_projectile && (flags & ANIM_PROJECTILE))
 	{
-		if (Projectile_SpawnLocal(idx, a, replay_frame, ws_predicted.ping,
-		                          ws_predicted.predflags))
+		if (fabs(ws_predicted.client_time - last_projectile_time) < SHOT_SAME_WINDOW)
 		{
+			// Same shot found again on a later frame: already spawned.
+			last_projectile_time = ws_predicted.client_time;
+			last_projectile_frame = max(last_projectile_frame, replay_frame);
+		}
+		else if (Projectile_SpawnLocal(idx, a, replay_frame, ws_predicted.ping,
+		                               ws_predicted.predflags))
+		{
+			last_projectile_time = ws_predicted.client_time;
 			last_projectile_frame = max(last_projectile_frame, replay_frame);
 		}
 	}
