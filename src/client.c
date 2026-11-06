@@ -1810,6 +1810,17 @@ void WeaponPrediction_MarkSendFlags(void)
 	}
 
 
+	/*
+	 * Send the whole weapon state on every update, not only what changed.
+	 * The client rebases prediction on the frame the snapshot acknowledges;
+	 * if an earlier delta (a new attack_finished, ammo) was lost, a later
+	 * delta-only update would pair the new client_time with the old
+	 * attack_finished, and the client would predict the same shot again.
+	 */
+	sendflags |= WEAPONINFO_INDEX | WEAPONINFO_AMMO_SHELLS | WEAPONINFO_AMMO_NAILS
+		| WEAPONINFO_AMMO_ROCKETS | WEAPONINFO_AMMO_CELLS | WEAPONINFO_ATTACK
+		| WEAPONINFO_PRED_PING;
+
 	trap_SetSendNeeded(NUM_FOR_EDICT(wep), sendflags, NUM_FOR_EDICT(self));
 }
 
