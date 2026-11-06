@@ -44,6 +44,7 @@ enum
 .float	owner_num;		// entity number of the player who fired
 .float	is_local;		// our own prediction, not an entity the server sent
 
+.float	proj_announced;	// first update with model and owner handled
 .float	endtime;		// server time a local projectile gives up at
 
 .vector	sim_origin;		// grenade simulation, carried between frames
@@ -651,9 +652,18 @@ void Projectile_Parse(float isnew)
 		}
 	}
 
-	// Everything from here is about an entity appearing for the first time.
-	if (!isnew)
+	/*
+	 * Everything from here is about an entity appearing for the first time.
+	 * That is the first update carrying its model and owner, not necessarily
+	 * the first update: when the packet with them is lost, the entity first
+	 * arrives as a bare origin delta, and taking over our local copy then
+	 * would fail (no owner, no model) and leave our shot to expire unclaimed.
+	 */
+	if (self.proj_announced)
 		return;
+	if (!self.modelindex || !self.owner_num)
+		return;
+	self.proj_announced = TRUE;
 
 	if (autocvar_cl_predict_debug)
 	{
