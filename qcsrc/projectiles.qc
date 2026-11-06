@@ -443,26 +443,23 @@ float Projectile_SpawnLocal(float widx, float a, float frame, float ping,
 	proj.angles = vectoangles(vel);
 	proj.endtime = time + max(ping + TRAIL_PERIOD, LOCAL_MIN_LIFETIME);
 
-	// The server advances a newly spawned missile by one frame before anyone
-	// sees it, so it left the muzzle that long ago.
-	proj.s_recv = time - NEWMIS_STEP;
-
 	Projectile_Classify(proj);
 
 	if (proj.proj_kind == PROJ_GRENADE)
 	{
+		// Grenades are corrected every server frame and get no newmis lead:
+		// starting them a step ahead put them visibly ahead of the server's.
+		proj.s_recv = time;
 		proj.sim_origin = org;
 		proj.sim_angles = proj.angles;
 		proj.sim_time = time;
 		proj.angle_time = cltime;
-
-		// Match that step so the arcs line up.
-		Projectile_Bounce(proj, NEWMIS_STEP, TRUE);
-		org = proj.sim_origin;
 	}
 	else
 	{
-		// Extrapolated from the muzzle rather than simulated.
+		// The server advances a newly spawned rocket or nail by one frame
+		// before anyone sees it, so it left the muzzle that long ago.
+		proj.s_recv = time - NEWMIS_STEP;
 		proj.s_origin = org;
 		proj.s_velocity = vel;
 		org += vel * NEWMIS_STEP;
