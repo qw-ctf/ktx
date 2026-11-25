@@ -1970,6 +1970,7 @@ void W_SetCurrentAmmo(void)
 		case IT_AXE:
 			self->s.v.currentammo = 0;
 			self->weaponmodel = "progs/v_axe.mdl";
+			self->weapon_index = 1;
 			self->s.v.weaponframe = 0;
 			if (vw_enabled)
 			{
@@ -1989,6 +1990,7 @@ void W_SetCurrentAmmo(void)
 				self->weaponmodel = "progs/v_shot.mdl";
 			}
 
+			self->weapon_index = 2;
 			self->s.v.weaponframe = 0;
 			items |= IT_SHELLS;
 			if (vw_enabled)
@@ -2001,6 +2003,7 @@ void W_SetCurrentAmmo(void)
 		case IT_SUPER_SHOTGUN:
 			self->s.v.currentammo = self->s.v.ammo_shells;
 			self->weaponmodel = "progs/v_shot2.mdl";
+			self->weapon_index = 3;
 			self->s.v.weaponframe = 0;
 			items |= IT_SHELLS;
 			if (vw_enabled)
@@ -2013,6 +2016,7 @@ void W_SetCurrentAmmo(void)
 		case IT_NAILGUN:
 			self->s.v.currentammo = self->s.v.ammo_nails;
 			self->weaponmodel = "progs/v_nail.mdl";
+			self->weapon_index = 4;
 			self->s.v.weaponframe = 0;
 			items |= IT_NAILS;
 			if (vw_enabled)
@@ -2025,6 +2029,7 @@ void W_SetCurrentAmmo(void)
 		case IT_SUPER_NAILGUN:
 			self->s.v.currentammo = self->s.v.ammo_nails;
 			self->weaponmodel = "progs/v_nail2.mdl";
+			self->weapon_index = 5;
 			self->s.v.weaponframe = 0;
 			items |= IT_NAILS;
 			if (vw_enabled)
@@ -2044,6 +2049,7 @@ void W_SetCurrentAmmo(void)
 				self->s.v.currentammo = self->s.v.ammo_rockets;
 			}
 			self->weaponmodel = "progs/v_rock.mdl";
+			self->weapon_index = 6;
 			self->s.v.weaponframe = 0;
 			items |= IT_ROCKETS;
 			if (vw_enabled)
@@ -2056,6 +2062,7 @@ void W_SetCurrentAmmo(void)
 		case IT_ROCKET_LAUNCHER:
 			self->s.v.currentammo = self->s.v.ammo_rockets;
 			self->weaponmodel = "progs/v_rock2.mdl";
+			self->weapon_index = 7;
 			self->s.v.weaponframe = 0;
 			items |= IT_ROCKETS;
 			if (vw_enabled)
@@ -2068,6 +2075,7 @@ void W_SetCurrentAmmo(void)
 		case IT_LIGHTNING:
 			self->s.v.currentammo = self->s.v.ammo_cells;
 			self->weaponmodel = "progs/v_light.mdl";
+			self->weapon_index = 8;
 			self->s.v.weaponframe = 0;
 			items |= IT_CELLS;
 			if (vw_enabled)
@@ -2088,6 +2096,7 @@ void W_SetCurrentAmmo(void)
 				self->weaponmodel = "progs/v_axe.mdl";
 			}
 
+			self->weapon_index = 0;
 			self->s.v.weaponframe = 0;
 			if (vw_enabled)
 			{
@@ -2099,6 +2108,7 @@ void W_SetCurrentAmmo(void)
 		default:
 			self->s.v.currentammo = 0;
 			self->weaponmodel = "";
+			self->weapon_index = 0;
 			self->s.v.weaponframe = 0;
 			self->vw_index = 0;
 			break;
@@ -3079,6 +3089,7 @@ void W_WeaponFrame(void)
 
 	if (!race_weapon_allowed(self))
 	{
+		self->client_predflags = PRDFL_FORCEOFF;
 		return;
 	}
 
